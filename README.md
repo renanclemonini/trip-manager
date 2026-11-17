@@ -22,6 +22,8 @@ docker compose exec web python manage.py test
 ```
 
 - Usuários são criados pelo Django Admin (`/admin/`); login é por e-mail.
+- O serviço `web` aplica as migrations pendentes automaticamente ao subir
+  (só em dev; em produção o migrate continua manual — veja a seção abaixo).
 - Sincronização: os lançamentos do mobile passam por `POST /sync/<recurso>/`
   (login + CSRF) e seguem para o servidor quando há conexão.
 
