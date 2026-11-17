@@ -12,11 +12,13 @@
             <a href="{% url 'trip_detail' trip.pk %}" class="text-muted fs-12 d-inline-block mt-1">← Voltar para a viagem</a>
         </div>
     </div>
-    <div class="page-header-right ms-auto">
-        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#refuelingModal">
-            <i class="feather-plus me-2"></i>Novo abastecimento
-        </button>
-    </div>
+    {% if not trip.is_completed %}
+        <div class="page-header-right ms-auto">
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#refuelingModal">
+                <i class="feather-plus me-2"></i>Novo abastecimento
+            </button>
+        </div>
+    {% endif %}
 </div>
 
 {% include 'includes/offline_sync.html' %}
@@ -60,11 +62,14 @@
     </div>
 </div>
 
-{% include 'includes/ibge_city_autocomplete.html' %}
-{% include 'includes/form_masks_scripts.html' %}
+{% if not trip.is_completed %}
+    {% include 'includes/ibge_city_autocomplete.html' %}
+    {% include 'includes/form_masks_scripts.html' %}
+{% endif %}
 {% endblock %}
 
 {% block modals %}
+{% if not trip.is_completed %}
 <div class="modal fade" id="refuelingModal" tabindex="-1" aria-labelledby="refuelingModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -104,4 +109,5 @@
         </div>
     </div>
 </div>
+{% endif %}
 {% endblock %}

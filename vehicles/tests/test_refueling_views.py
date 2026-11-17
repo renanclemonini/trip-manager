@@ -4,7 +4,7 @@ from decimal import Decimal
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
-from django.utils.timezone import make_aware
+from django.utils.timezone import localdate, make_aware
 
 from trips.models import Trip, TripType
 from vehicles.forms import RefuelingForm
@@ -19,7 +19,7 @@ def create_user(email):
     )
 
 
-def create_trip(user, trip_type=TripType.CAR, with_vehicle=True):
+def create_trip(user, trip_type=TripType.CAR, with_vehicle=True, end_date=None):
     trip = Trip.objects.create(
         created_by=user,
         origin_city='São Paulo',
@@ -28,6 +28,7 @@ def create_trip(user, trip_type=TripType.CAR, with_vehicle=True):
         destination_state='PR',
         trip_type=trip_type,
         start_date=date(2026, 10, 1),
+        end_date=end_date,
     )
     if with_vehicle:
         vehicle = Vehicle.objects.create(
@@ -189,6 +190,43 @@ class RefuelingListViewTests(TestCase):
     def test_empty_state_is_shown_without_refuelings(self):
         response = self.client.get(reverse('refueling_list', args=[self.trip.pk]))
         self.assertContains(response, 'Nenhum abastecimento')
+
+
+class RefuelingListCompletedTripTests(TestCase):
+    def setUp(self):
+        self.user = create_user('completed-refueling@example.com')
+        self.client.force_login(self.user)
+
+    def test_completed_trip_hides_create_button_and_modal(self):
+        trip = create_trip(self.user, end_date=localdate())
+        response = self.client.get(reverse('refueling_list', args=[trip.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'data-bs-toggle="modal"')
+        self.assertNotContains(response, 'id="refuelingModal"')
+        self.assertNotContains(
+            response,
+            f'action="{reverse("refueling_create", args=[trip.pk])}"',
+        )
+        self.assertNotContains(response, 'Novo abastecimento')
+        self.assertNotContains(response, 'js/ibge_city_autocomplete.js')
+        self.assertNotContains(response, 'js/form_masks.js')
+
+    def test_completed_trip_keeps_list_and_offline_sync_panel(self):
+        trip = create_trip(self.user, end_date=localdate())
+        refueling = create_refueling(trip)
+        response = self.client.get(reverse('refueling_list', args=[trip.pk]))
+        self.assertContains(response, 'id="offline-sync-panel"')
+        self.assertContains(
+            response,
+            f'href="{reverse("refueling_detail", args=[trip.pk, refueling.pk])}"',
+        )
+
+    def test_in_progress_trip_keeps_button_and_modal(self):
+        trip = create_trip(self.user)
+        response = self.client.get(reverse('refueling_list', args=[trip.pk]))
+        self.assertContains(response, 'data-bs-toggle="modal"')
+        self.assertContains(response, 'id="refuelingModal"')
+        self.assertContains(response, 'Novo abastecimento')
 
 
 class RefuelingCreateViewTests(TestCase):

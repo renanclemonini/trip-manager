@@ -11,11 +11,13 @@
             <a href="{% url 'trip_detail' trip.pk %}" class="text-muted fs-12 d-inline-block mt-1">← Voltar para a viagem</a>
         </div>
     </div>
-    <div class="page-header-right ms-auto">
-        <a href="{% url 'meal_create' trip.pk %}" class="btn btn-primary">
-            <i class="feather-plus me-2"></i>Nova alimentação
-        </a>
-    </div>
+    {% if not trip.is_completed %}
+        <div class="page-header-right ms-auto">
+            <a href="{% url 'meal_create' trip.pk %}" class="btn btn-primary">
+                <i class="feather-plus me-2"></i>Nova alimentação
+            </a>
+        </div>
+    {% endif %}
 </div>
 
 {% include 'includes/offline_sync.html' %}

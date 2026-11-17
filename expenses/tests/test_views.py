@@ -1,10 +1,10 @@
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
-from django.utils.timezone import make_aware
+from django.utils.timezone import localdate, make_aware
 
 from expenses.models import Lodging, Meal, Sightseeing
 from trips.models import Trip, TripType
@@ -20,7 +20,7 @@ def create_user(email):
     )
 
 
-def create_trip(user, trip_type=TripType.CAR):
+def create_trip(user, trip_type=TripType.CAR, end_date=None):
     return Trip.objects.create(
         created_by=user,
         origin_city='São Paulo',
@@ -29,6 +29,7 @@ def create_trip(user, trip_type=TripType.CAR):
         destination_state='PR',
         trip_type=trip_type,
         start_date=date(2026, 10, 1),
+        end_date=end_date,
     )
 
 
@@ -353,6 +354,91 @@ class SightseeingViewTests(TestCase):
         )
         sightseeing.refresh_from_db()
         self.assertEqual(sightseeing.description, 'Parque')
+
+
+class LodgingListCompletedTripTests(TestCase):
+    def setUp(self):
+        self.user = create_user('completed-lodging@example.com')
+        self.client.force_login(self.user)
+
+    def test_completed_trip_hides_create_button(self):
+        trip = create_trip(self.user, end_date=localdate())
+        create_lodging(trip)
+        response = self.client.get(reverse('lodging_list', args=[trip.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(
+            response, f'href="{reverse("lodging_create", args=[trip.pk])}"'
+        )
+        self.assertNotContains(response, 'Nova hospedagem')
+        self.assertContains(response, 'id="offline-sync-panel"')
+
+    def test_in_progress_trip_keeps_create_button(self):
+        trip = create_trip(self.user)
+        response = self.client.get(reverse('lodging_list', args=[trip.pk]))
+        self.assertContains(
+            response, f'href="{reverse("lodging_create", args=[trip.pk])}"'
+        )
+        self.assertContains(response, 'Nova hospedagem')
+
+
+class MealListCompletedTripTests(TestCase):
+    def setUp(self):
+        self.user = create_user('completed-meal@example.com')
+        self.client.force_login(self.user)
+
+    def test_completed_trip_hides_create_button(self):
+        trip = create_trip(self.user, end_date=localdate())
+        create_meal(trip)
+        response = self.client.get(reverse('meal_list', args=[trip.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(
+            response, f'href="{reverse("meal_create", args=[trip.pk])}"'
+        )
+        self.assertNotContains(response, 'Nova alimentação')
+        self.assertContains(response, 'id="offline-sync-panel"')
+
+    def test_in_progress_trip_keeps_create_button(self):
+        trip = create_trip(self.user)
+        response = self.client.get(reverse('meal_list', args=[trip.pk]))
+        self.assertContains(
+            response, f'href="{reverse("meal_create", args=[trip.pk])}"'
+        )
+        self.assertContains(response, 'Nova alimentação')
+
+
+class SightseeingListCompletedTripTests(TestCase):
+    def setUp(self):
+        self.user = create_user('completed-sightseeing@example.com')
+        self.client.force_login(self.user)
+
+    def test_completed_trip_hides_create_button(self):
+        trip = create_trip(self.user, TripType.BUS, end_date=localdate())
+        create_sightseeing(trip)
+        response = self.client.get(
+            reverse('sightseeing_list', args=[trip.pk])
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(
+            response,
+            f'href="{reverse("sightseeing_create", args=[trip.pk])}"',
+        )
+        self.assertNotContains(response, 'Novo passeio')
+        self.assertContains(response, 'id="offline-sync-panel"')
+
+    def test_in_progress_trip_keeps_create_button(self):
+        trip = create_trip(
+            self.user,
+            TripType.BUS,
+            end_date=localdate() + timedelta(days=1),
+        )
+        response = self.client.get(
+            reverse('sightseeing_list', args=[trip.pk])
+        )
+        self.assertContains(
+            response,
+            f'href="{reverse("sightseeing_create", args=[trip.pk])}"',
+        )
+        self.assertContains(response, 'Novo passeio')
 
 
 class TripDetailLaunchLinksTests(TestCase):
