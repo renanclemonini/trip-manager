@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+
+{% block title %}Relatório — {{ trip }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left d-flex align-items-center">
+        <div class="page-header-title">
+            <h5 class="m-b-10">Relatório da viagem</h5>
+            <p class="text-muted mb-0">{{ trip }}</p>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mt-0">
+    {% for category in dashboard.categories %}
+        <div class="col-6 col-lg-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <p class="text-muted mb-1">{{ category.label }}</p>
+                    <p class="fw-semibold mb-0">R$ {{ category.total }}</p>
+                </div>
+            </div>
+        </div>
+    {% endfor %}
+    <div class="col-6 col-lg-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <p class="text-muted mb-1">Total gasto</p>
+                <p class="fw-semibold mb-0">R$ {{ dashboard.grand_total }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mt-3">
+    <div class="card-body p-4">
+        <form method="post" id="report-form" novalidate>
+            {% csrf_token %}
+            <h6 class="fw-semibold mb-3">{{ form.chart_type.label }}</h6>
+            <div class="d-flex flex-wrap gap-4">
+                {% for radio in form.chart_type %}
+                    <div class="form-check">
+                        {{ radio.tag }}
+                        <label class="form-check-label" for="{{ radio.id_for_label }}">{{ radio.choice_label }}</label>
+                    </div>
+                {% endfor %}
+            </div>
+            {% for error in form.chart_type.errors %}
+                <div class="text-danger fs-12 mt-1">{{ error }}</div>
+            {% endfor %}
+            <div class="mt-4">
+                <button type="submit" class="btn btn-primary">
+                    <i class="feather-download me-2"></i>Gerar PDF
+                </button>
+                <a href="{% url 'report_send' trip.pk %}" class="btn btn-light ms-2">
+                    <i class="feather-send me-2"></i>Enviar
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    'use strict';
+
+    var form = document.getElementById('report-form');
+    if (!form || !window.fetch) {
+        return;
+    }
+
+    form.addEventListener('submit', function (event) {
+        event.preventDefault();
+        var button = form.querySelector('button[type="submit"]');
+        if (button) {
+            button.disabled = true;
+        }
+        fetch(form.action, {
+            method: 'POST',
+            body: new FormData(form),
+        })
+            .then(function (response) {
+                if (!response.ok) {
+                    throw new Error('Falha ao gerar o relatório.');
+                }
+                return response.blob();
+            })
+            .then(function (blob) {
+                var link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = '{{ download_filename|escapejs }}';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(link.href);
+            })
+            .catch(function () {
+                form.submit();
+            })
+            .finally(function () {
+                if (button) {
+                    button.disabled = false;
+                }
+            });
+    });
+})();
+</script>
+{% endblock %}

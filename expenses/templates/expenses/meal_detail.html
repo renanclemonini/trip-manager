@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+
+{% block title %}Alimentação {{ meal.city }}/{{ meal.state }} — Gerenciador de Viagem{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left d-flex align-items-center">
+        <div class="page-header-title">
+            <h5 class="m-b-10">{{ meal.city }}/{{ meal.state }}</h5>
+            <p class="text-muted mb-0">{{ trip }}</p>
+        </div>
+    </div>
+    <div class="page-header-right ms-auto">
+        <a href="{% url 'meal_edit' trip.pk meal.pk %}" class="btn btn-light">
+            <i class="feather-edit-3 me-2"></i>Editar
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body p-4">
+        <div class="row g-3">
+            <div class="col-md-4">
+                <p class="text-muted mb-1">Data/hora</p>
+                <p class="fw-semibold">{{ meal.datetime|date:'d/m/Y H:i' }}</p>
+            </div>
+            <div class="col-md-4">
+                <p class="text-muted mb-1">Valor gasto</p>
+                <p class="fw-semibold">R$ {{ meal.amount_spent }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="mt-3">
+    <a href="{% url 'meal_list' trip.pk %}" class="btn btn-light">Voltar para a lista</a>
+</div>
+{% endblock %}

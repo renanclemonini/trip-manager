@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Nova viagem — Gerenciador de Viagem{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left d-flex align-items-center">
+        <div class="page-header-title">
+            <h5 class="m-b-10">Nova viagem</h5>
+            <p class="text-muted mb-0">Informe origem, destino, tipo e datas.</p>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body p-4">
+        <form method="post" novalidate>
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+                <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+            {% endif %}
+            <div class="row g-3">
+                <div class="col-md-6" data-ibge-pair>
+                    <div class="row g-3">
+                        <div class="col-md-5">
+                            <label for="{{ form.origin_state.id_for_label }}" class="form-label">{{ form.origin_state.label }}</label>
+                            {{ form.origin_state }}
+                            {% for error in form.origin_state.errors %}
+                                <div class="text-danger fs-12 mt-1">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-7">
+                            <label for="{{ form.origin_city.id_for_label }}" class="form-label">{{ form.origin_city.label }}</label>
+                            {{ form.origin_city }}
+                            {% for error in form.origin_city.errors %}
+                                <div class="text-danger fs-12 mt-1">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6" data-ibge-pair>
+                    <div class="row g-3">
+                        <div class="col-md-5">
+                            <label for="{{ form.destination_state.id_for_label }}" class="form-label">{{ form.destination_state.label }}</label>
+                            {{ form.destination_state }}
+                            {% for error in form.destination_state.errors %}
+                                <div class="text-danger fs-12 mt-1">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-7">
+                            <label for="{{ form.destination_city.id_for_label }}" class="form-label">{{ form.destination_city.label }}</label>
+                            {{ form.destination_city }}
+                            {% for error in form.destination_city.errors %}
+                                <div class="text-danger fs-12 mt-1">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <label for="{{ form.trip_type.id_for_label }}" class="form-label">{{ form.trip_type.label }}</label>
+                    {{ form.trip_type }}
+                    {% for error in form.trip_type.errors %}
+                        <div class="text-danger fs-12 mt-1">{{ error }}</div>
+                    {% endfor %}
+                </div>
+                <div class="col-md-4">
+                    <label for="{{ form.start_date.id_for_label }}" class="form-label">{{ form.start_date.label }}</label>
+                    {{ form.start_date }}
+                    {% for error in form.start_date.errors %}
+                        <div class="text-danger fs-12 mt-1">{{ error }}</div>
+                    {% endfor %}
+                </div>
+                <div class="col-md-4" id="end-date-field">
+                    <label for="{{ form.end_date.id_for_label }}" class="form-label">{{ form.end_date.label }}</label>
+                    {{ form.end_date }}
+                    {% for error in form.end_date.errors %}
+                        <div class="text-danger fs-12 mt-1">{{ error }}</div>
+                    {% endfor %}
+                </div>
+            </div>
+            <datalist id="origin-city-list"></datalist>
+            <datalist id="destination-city-list"></datalist>
+            <div class="d-flex gap-2 mt-4">
+                <button type="submit" class="btn btn-primary">Salvar viagem</button>
+                <a href="{% url 'home' %}" class="btn btn-light">Cancelar</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/ibge_city_autocomplete.js' %}" defer></script>
+<script src="{% static 'trips/js/trip_form.js' %}" defer></script>
+{% endblock %}

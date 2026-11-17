@@ -1,0 +1,206 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% load static %}
+
+{% block title %}{{ trip }} — Gerenciador de Viagem{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left d-flex align-items-center">
+        <div class="page-header-title">
+            <h5 class="m-b-10">{{ trip }}</h5>
+            <span class="badge bg-soft-primary text-primary">{{ trip.get_trip_type_display }}</span>
+        </div>
+    </div>
+</div>
+
+{% if trip.trip_type == 'car' %}
+    <div class="card">
+        <div class="card-body p-4">
+            {% if trip.tripvehicle %}
+                <h6 class="fw-semibold mb-3">Veículo</h6>
+                <p class="mb-1"><strong>{{ trip.tripvehicle.vehicle }}</strong></p>
+                <p class="text-muted mb-3">Odômetro inicial: {{ trip.tripvehicle.initial_mileage|intcomma }} km<br>Odômetro atual: {{ trip.tripvehicle.current_mileage|intcomma }} km</p>
+                <a href="{% url 'vehicle_edit' trip.pk %}" class="btn btn-light btn-sm">Editar veículo</a>
+            {% else %}
+                <h6 class="fw-semibold mb-2">Veículo ainda não cadastrado</h6>
+                <p class="text-muted mb-3">Cadastre o veículo e o odômetro inicial para liberar os lançamentos.</p>
+                <a href="{% url 'vehicle_new' trip.pk %}" class="btn btn-primary btn-sm">Cadastrar veículo</a>
+            {% endif %}
+        </div>
+    </div>
+{% elif trip.trip_type == 'bus' %}
+    <div class="card">
+        <div class="card-body p-4">
+            {% if trip.bustrip %}
+                <h6 class="fw-semibold mb-3">Ônibus</h6>
+                <p class="mb-1"><strong>{{ trip.bustrip.vehicle }}</strong> — {{ trip.bustrip.company }}</p>
+                <p class="text-muted mb-3">Valor custeado: R$ {{ trip.bustrip.amount_paid }} · Início: {{ trip.bustrip.start_date|date:'d/m/Y' }}</p>
+                <a href="{% url 'bus_edit' trip.pk %}" class="btn btn-light btn-sm">Editar dados do ônibus</a>
+            {% else %}
+                <h6 class="fw-semibold mb-2">Dados do ônibus ainda não cadastrados</h6>
+                <p class="text-muted mb-3">Informe empresa, valor custeado, data de início e veículo.</p>
+                <a href="{% url 'bus_new' trip.pk %}" class="btn btn-primary btn-sm">Cadastrar dados do ônibus</a>
+            {% endif %}
+        </div>
+    </div>
+{% elif trip.trip_type == 'plane' %}
+    <div class="card">
+        <div class="card-body p-4">
+            {% if trip.flighttrip %}
+                <h6 class="fw-semibold mb-3">Voo</h6>
+                <p class="mb-1"><strong>{{ trip.flighttrip.airline }}</strong>{% if trip.flighttrip.aircraft_model %} — {{ trip.flighttrip.aircraft_model }}{% endif %}</p>
+                <p class="text-muted mb-3">
+                    Passagem: R$ {{ trip.flighttrip.ticket_price }} ·
+                    Ida: {{ trip.flighttrip.departure_datetime|date:'d/m/Y H:i' }}
+                    {% if trip.flighttrip.return_datetime %}· Volta: {{ trip.flighttrip.return_datetime|date:'d/m/Y H:i' }}{% endif %}
+                </p>
+                <a href="{% url 'flight_edit' trip.pk %}" class="btn btn-light btn-sm">Editar dados do voo</a>
+            {% else %}
+                <h6 class="fw-semibold mb-2">Dados do voo ainda não cadastrados</h6>
+                <p class="text-muted mb-3">Informe companhia, passagem e datas de ida/volta.</p>
+                <a href="{% url 'flight_new' trip.pk %}" class="btn btn-primary btn-sm">Cadastrar dados do voo</a>
+            {% endif %}
+        </div>
+    </div>
+{% endif %}
+
+<div class="card mt-3">
+    <div class="card-body p-4">
+        <h6 class="fw-semibold mb-3">Lançamentos</h6>
+        <div class="d-flex flex-wrap gap-2">
+            {% if trip.trip_type == 'car' %}
+                <a href="{% url 'refueling_list' trip.pk %}" class="btn btn-light btn-sm">
+                    <i class="feather-droplet me-2"></i>Abastecimentos
+                </a>
+            {% endif %}
+            <a href="{% url 'lodging_list' trip.pk %}" class="btn btn-light btn-sm">
+                <i class="feather-home me-2"></i>Hospedagens
+            </a>
+            <a href="{% url 'meal_list' trip.pk %}" class="btn btn-light btn-sm">
+                <i class="feather-coffee me-2"></i>Refeições
+            </a>
+            {% if trip.trip_type == 'bus' %}
+                <a href="{% url 'sightseeing_list' trip.pk %}" class="btn btn-light btn-sm">
+                    <i class="feather-map-pin me-2"></i>Passeios
+                </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    {% for category in dashboard.categories %}
+        <div class="col-6 col-lg-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <p class="text-muted mb-1">{{ category.label }}</p>
+                    <p class="fw-semibold mb-0">R$ {{ category.total }}</p>
+                </div>
+            </div>
+        </div>
+    {% endfor %}
+    <div class="col-6 col-lg-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <p class="text-muted mb-1">Total gasto</p>
+                <p class="fw-semibold mb-0">R$ {{ dashboard.grand_total }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if dashboard.refueling %}
+    <div class="card mt-3">
+        <div class="card-body p-4">
+            <h6 class="fw-semibold mb-3">Abastecimento</h6>
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <p class="text-muted mb-1">Distância total</p>
+                    <p class="fw-semibold">{{ dashboard.refueling.total_distance|default:'—' }} km</p>
+                </div>
+                <div class="col-md-4">
+                    <p class="text-muted mb-1">Consumo médio</p>
+                    <p class="fw-semibold">{{ dashboard.refueling.average_km_per_liter|default:'—' }} km/l</p>
+                </div>
+                <div class="col-md-4">
+                    <p class="text-muted mb-1">Custo médio por km</p>
+                    <p class="fw-semibold">R$ {{ dashboard.refueling.average_cost_per_km|default:'—' }}</p>
+                </div>
+                <div class="col-md-4">
+                    <p class="text-muted mb-1">Preço médio por litro</p>
+                    <p class="fw-semibold">R$ {{ dashboard.refueling.weighted_average_price|default:'—' }}</p>
+                </div>
+                <div class="col-md-4">
+                    <p class="text-muted mb-1">Menor preço por litro</p>
+                    <p class="fw-semibold">R$ {{ dashboard.refueling.min_price|default:'—' }}</p>
+                </div>
+                <div class="col-md-4">
+                    <p class="text-muted mb-1">Maior preço por litro</p>
+                    <p class="fw-semibold">R$ {{ dashboard.refueling.max_price|default:'—' }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endif %}
+
+<div class="card mt-3">
+    <div class="card-body p-4">
+        <h6 class="fw-semibold mb-3">Alimentação</h6>
+        <div class="row g-3">
+            <div class="col-md-4">
+                <p class="text-muted mb-1">Média</p>
+                <p class="fw-semibold">R$ {{ dashboard.meal_stats.average_amount|default:'—' }}</p>
+            </div>
+            <div class="col-md-4">
+                <p class="text-muted mb-1">Menor valor</p>
+                <p class="fw-semibold">R$ {{ dashboard.meal_stats.min_amount|default:'—' }}</p>
+            </div>
+            <div class="col-md-4">
+                <p class="text-muted mb-1">Maior valor</p>
+                <p class="fw-semibold">R$ {{ dashboard.meal_stats.max_amount|default:'—' }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="d-none d-lg-block mt-3 mb-4">
+    <div class="row g-3">
+        <div class="col-lg-5">
+            <div class="card h-100">
+                <div class="card-body p-4">
+                    <h6 class="fw-semibold mb-3">Gastos por categoria</h6>
+                    <div id="categoryChart"></div>
+                </div>
+            </div>
+        </div>
+        {% if dashboard.chart_data.consumption %}
+            <div class="col-lg-7">
+                <div class="card h-100">
+                    <div class="card-body p-4">
+                        <h6 class="fw-semibold mb-3">Consumo (km/l)</h6>
+                        <div id="consumptionChart"></div>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+{% if trip.trip_type == 'car' and not trip.end_date %}
+    <div class="card mt-3">
+        <div class="card-body p-4">
+            <h6 class="fw-semibold mb-2">Viagem em andamento</h6>
+            <p class="text-muted mb-3">Defina a data de fim quando a viagem terminar.</p>
+            <a href="{% url 'trip_finish' trip.pk %}" class="btn btn-primary btn-sm">Finalizar viagem</a>
+        </div>
+    </div>
+{% endif %}
+
+{{ dashboard.chart_data|json_script:'dashboard-chart-data' }}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'vendor/apexcharts.min.js' %}"></script>
+<script src="{% static 'trips/js/dashboard_charts.js' %}"></script>
+{% endblock %}

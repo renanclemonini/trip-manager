@@ -1,0 +1,11 @@
+{% load static %}
+<div class="d-lg-none" id="offline-sync-panel" data-sync-trip="{{ trip.pk }}">
+    <div class="card mb-3">
+        <div class="card-body d-flex align-items-center justify-content-between">
+            <span id="offline-sync-count" class="fw-semibold">0 lançamentos pendentes</span>
+            <button type="button" class="btn btn-primary btn-sm" id="offline-sync-now">Sincronizar agora</button>
+        </div>
+    </div>
+    <div id="offline-sync-list"></div>
+</div>
+{% include 'includes/offline_sync_scripts.html' %}

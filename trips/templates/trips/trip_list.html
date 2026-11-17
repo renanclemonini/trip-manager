@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+
+{% block title %}Viagens — Gerenciador de Viagem{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left d-flex align-items-center">
+        <div class="page-header-title">
+            <h5 class="m-b-10">Viagens</h5>
+            <p class="text-muted mb-0">Acompanhe suas viagens e gastos.</p>
+        </div>
+    </div>
+    <div class="page-header-right ms-auto">
+        <a href="{% url 'trip_create' %}" class="btn btn-primary">
+            <i class="feather-plus me-2"></i>Nova viagem
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        {% if trips %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Rota</th>
+                            <th>Tipo</th>
+                            <th>Início</th>
+                            <th>Fim</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for trip in trips %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'trip_detail' trip.pk %}">{{ trip }}</a>
+                                </td>
+                                <td><span class="badge bg-soft-primary text-primary">{{ trip.get_trip_type_display }}</span></td>
+                                <td>{{ trip.start_date|date:'d/m/Y' }}</td>
+                                <td>{{ trip.end_date|date:'d/m/Y'|default:'—' }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="p-4 text-muted">
+                Nenhuma viagem cadastrada ainda. Clique em "Nova viagem" para começar.
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="utf-8">
+    <title>Relatório — {{ trip }}</title>
+    <style>
+        body { font-family: 'DejaVu Sans', Arial, sans-serif; color: #1e293b; font-size: 12px; }
+        h1 { font-size: 18px; margin-bottom: 4px; }
+        h2 { font-size: 14px; margin: 18px 0 8px; }
+        p { margin: 2px 0; }
+        .muted { color: #64748b; }
+        table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+        th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #e2e8f0; }
+        th { background: #f1f5f9; }
+        .total { font-weight: bold; }
+        img { width: 100%; max-width: 640px; }
+        .footer { margin-top: 24px; color: #64748b; font-size: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Relatório da viagem</h1>
+    <p><strong>{{ trip }}</strong> · {{ trip.get_trip_type_display }}</p>
+    <p class="muted">
+        {{ trip.start_date|date:'d/m/Y' }}{% if trip.end_date %} a {{ trip.end_date|date:'d/m/Y' }}{% endif %}
+    </p>
+
+    <h2>Totais por categoria</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Categoria</th>
+                <th>Valor</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for category in dashboard.categories %}
+                <tr>
+                    <td>{{ category.label }}</td>
+                    <td>R$ {{ category.total }}</td>
+                </tr>
+            {% endfor %}
+            <tr class="total">
+                <td>Total gasto</td>
+                <td>R$ {{ dashboard.grand_total }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    {% if dashboard.refueling %}
+        <h2>Abastecimento</h2>
+        <table>
+            <tbody>
+                <tr><td>Distância total</td><td>{{ dashboard.refueling.total_distance|default:'—' }} km</td></tr>
+                <tr><td>Consumo médio</td><td>{{ dashboard.refueling.average_km_per_liter|default:'—' }} km/l</td></tr>
+                <tr><td>Custo médio por km</td><td>R$ {{ dashboard.refueling.average_cost_per_km|default:'—' }}</td></tr>
+                <tr><td>Preço médio por litro</td><td>R$ {{ dashboard.refueling.weighted_average_price|default:'—' }}</td></tr>
+                <tr><td>Menor preço por litro</td><td>R$ {{ dashboard.refueling.min_price|default:'—' }}</td></tr>
+                <tr><td>Maior preço por litro</td><td>R$ {{ dashboard.refueling.max_price|default:'—' }}</td></tr>
+            </tbody>
+        </table>
+    {% endif %}
+
+    <h2>Alimentação</h2>
+    <table>
+        <tbody>
+            <tr><td>Média</td><td>R$ {{ dashboard.meal_stats.average_amount|default:'—' }}</td></tr>
+            <tr><td>Menor valor</td><td>R$ {{ dashboard.meal_stats.min_amount|default:'—' }}</td></tr>
+            <tr><td>Maior valor</td><td>R$ {{ dashboard.meal_stats.max_amount|default:'—' }}</td></tr>
+        </tbody>
+    </table>
+
+    <h2>Gastos por categoria ({{ chart_type_label }})</h2>
+    <img src="{{ category_chart }}" alt="Gastos por categoria">
+
+    {% if consumption_chart %}
+        <h2>Consumo (km/l)</h2>
+        <img src="{{ consumption_chart }}" alt="Consumo por abastecimento">
+    {% endif %}
+
+    <p class="footer">Gerado em {{ generated_at|date:'d/m/Y H:i' }}.</p>
+</body>
+</html>

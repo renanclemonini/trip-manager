@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Abastecimentos — Gerenciador de Viagem{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left d-flex align-items-center">
+        <div class="page-header-title">
+            <h5 class="m-b-10">Abastecimentos</h5>
+            <p class="text-muted mb-0">{{ trip }}</p>
+            <a href="{% url 'trip_detail' trip.pk %}" class="text-muted fs-12 d-inline-block mt-1">← Voltar para a viagem</a>
+        </div>
+    </div>
+    <div class="page-header-right ms-auto">
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#refuelingModal">
+            <i class="feather-plus me-2"></i>Novo abastecimento
+        </button>
+    </div>
+</div>
+
+{% include 'includes/offline_sync.html' %}
+
+<div class="card">
+    <div class="card-body p-0">
+        {% if refuelings %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Data/hora</th>
+                            <th>Cidade/UF</th>
+                            <th>Litros</th>
+                            <th>Valor</th>
+                            <th>Distância percorrida</th>
+                            <th>km/l</th>
+                            <th>R$/km</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for refueling in refuelings %}
+                            <tr class="position-relative">
+                                <td><a href="{% url 'refueling_detail' trip.pk refueling.pk %}" class="stretched-link text-reset">{{ refueling.datetime|date:'d/m/Y H:i' }}</a></td>
+                                <td>{{ refueling.city }}/{{ refueling.state }}</td>
+                                <td>{{ refueling.liters }}</td>
+                                <td>R$ {{ refueling.amount_spent }}</td>
+                                <td>{{ refueling.distance_traveled|default:'—' }} km</td>
+                                <td>{{ refueling.km_per_liter|default:'—' }}</td>
+                                <td>{{ refueling.cost_per_km|default:'—' }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="p-4 text-muted">
+                Nenhum abastecimento registrado ainda.
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+{% include 'includes/ibge_city_autocomplete.html' %}
+{% include 'includes/form_masks_scripts.html' %}
+{% endblock %}
+
+{% block modals %}
+<div class="modal fade" id="refuelingModal" tabindex="-1" aria-labelledby="refuelingModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'refueling_create' trip.pk %}" novalidate
+                  data-sync-form="refueling"
+                  data-sync-url="{% url 'sync_refueling' %}"
+                  data-sync-trip="{{ trip.pk }}"
+                  data-sync-list-url="{% url 'refueling_list' trip.pk %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="refuelingModalLabel">
+                        Novo abastecimento
+                        {% if trip.tripvehicle %}
+                            <span class="text-muted fs-12 fw-normal">— odômetro atual: {{ trip.tripvehicle.current_mileage|intcomma }} km</span>
+                        {% endif %}
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3" data-ibge-pair>
+                        {% for field in form %}
+                            <div class="col-md-6">
+                                <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                                {{ field }}
+                                {% for error in field.errors %}
+                                    <div class="text-danger fs-12 mt-1">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

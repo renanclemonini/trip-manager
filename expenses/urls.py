@@ -1,0 +1,79 @@
+from django.urls import path
+
+from expenses.views import (
+    LodgingCreateView,
+    LodgingDetailView,
+    LodgingListView,
+    LodgingUpdateView,
+    MealCreateView,
+    MealDetailView,
+    MealListView,
+    MealUpdateView,
+    SightseeingCreateView,
+    SightseeingDetailView,
+    SightseeingListView,
+    SightseeingUpdateView,
+)
+
+urlpatterns = [
+    path(
+        'trip/<int:trip_id>/lodging/',
+        LodgingListView.as_view(),
+        name='lodging_list',
+    ),
+    path(
+        'trip/<int:trip_id>/lodging/new/',
+        LodgingCreateView.as_view(),
+        name='lodging_create',
+    ),
+    path(
+        'trip/<int:trip_id>/lodging/<uuid:pk>/',
+        LodgingDetailView.as_view(),
+        name='lodging_detail',
+    ),
+    path(
+        'trip/<int:trip_id>/lodging/<uuid:pk>/edit/',
+        LodgingUpdateView.as_view(),
+        name='lodging_edit',
+    ),
+    path(
+        'trip/<int:trip_id>/food/',
+        MealListView.as_view(),
+        name='meal_list',
+    ),
+    path(
+        'trip/<int:trip_id>/food/new/',
+        MealCreateView.as_view(),
+        name='meal_create',
+    ),
+    path(
+        'trip/<int:trip_id>/food/<uuid:pk>/',
+        MealDetailView.as_view(),
+        name='meal_detail',
+    ),
+    path(
+        'trip/<int:trip_id>/food/<uuid:pk>/edit/',
+        MealUpdateView.as_view(),
+        name='meal_edit',
+    ),
+    path(
+        'trip/<int:trip_id>/sightseeing/',
+        SightseeingListView.as_view(),
+        name='sightseeing_list',
+    ),
+    path(
+        'trip/<int:trip_id>/sightseeing/new/',
+        SightseeingCreateView.as_view(),
+        name='sightseeing_create',
+    ),
+    path(
+        'trip/<int:trip_id>/sightseeing/<uuid:pk>/',
+        SightseeingDetailView.as_view(),
+        name='sightseeing_detail',
+    ),
+    path(
+        'trip/<int:trip_id>/sightseeing/<uuid:pk>/edit/',
+        SightseeingUpdateView.as_view(),
+        name='sightseeing_edit',
+    ),
+]

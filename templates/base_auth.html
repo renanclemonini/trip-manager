@@ -1,0 +1,19 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Gerenciador de Viagem{% endblock %}</title>
+    <link rel="shortcut icon" type="image/x-icon" href="{% static 'vendor/duralux/images/favicon.ico' %}">
+    <link rel="stylesheet" type="text/css" href="{% static 'vendor/duralux/css/bootstrap.min.css' %}">
+    <link rel="stylesheet" type="text/css" href="{% static 'vendor/duralux/css/vendors.min.css' %}">
+    <link rel="stylesheet" type="text/css" href="{% static 'vendor/duralux/css/theme.min.css' %}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    {% block content %}{% endblock %}
+    <script src="{% static 'vendor/duralux/js/vendors.min.js' %}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

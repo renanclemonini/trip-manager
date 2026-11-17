@@ -1,0 +1,67 @@
+from django.urls import path
+
+from vehicles.views import (
+    BusTripCreateView,
+    BusTripUpdateView,
+    FlightTripCreateView,
+    FlightTripUpdateView,
+    RefuelingCreateView,
+    RefuelingDetailView,
+    RefuelingListView,
+    RefuelingUpdateView,
+    VehicleCreateView,
+    VehicleUpdateView,
+)
+
+urlpatterns = [
+    path(
+        'trip/<int:trip_id>/refueling/',
+        RefuelingListView.as_view(),
+        name='refueling_list',
+    ),
+    path(
+        'trip/<int:trip_id>/refueling/new/',
+        RefuelingCreateView.as_view(),
+        name='refueling_create',
+    ),
+    path(
+        'trip/<int:trip_id>/refueling/<uuid:pk>/',
+        RefuelingDetailView.as_view(),
+        name='refueling_detail',
+    ),
+    path(
+        'trip/<int:trip_id>/refueling/<uuid:pk>/edit/',
+        RefuelingUpdateView.as_view(),
+        name='refueling_edit',
+    ),
+    path(
+        'trip/<int:trip_id>/vehicle/new/',
+        VehicleCreateView.as_view(),
+        name='vehicle_new',
+    ),
+    path(
+        'trip/<int:trip_id>/vehicle/edit/',
+        VehicleUpdateView.as_view(),
+        name='vehicle_edit',
+    ),
+    path(
+        'trip/<int:trip_id>/bus/new/',
+        BusTripCreateView.as_view(),
+        name='bus_new',
+    ),
+    path(
+        'trip/<int:trip_id>/bus/edit/',
+        BusTripUpdateView.as_view(),
+        name='bus_edit',
+    ),
+    path(
+        'trip/<int:trip_id>/flight/new/',
+        FlightTripCreateView.as_view(),
+        name='flight_new',
+    ),
+    path(
+        'trip/<int:trip_id>/flight/edit/',
+        FlightTripUpdateView.as_view(),
+        name='flight_edit',
+    ),
+]

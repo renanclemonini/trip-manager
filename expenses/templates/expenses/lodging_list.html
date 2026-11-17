@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+
+{% block title %}Hospedagens — Gerenciador de Viagem{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left d-flex align-items-center">
+        <div class="page-header-title">
+            <h5 class="m-b-10">Hospedagens</h5>
+            <p class="text-muted mb-0">{{ trip }}</p>
+            <a href="{% url 'trip_detail' trip.pk %}" class="text-muted fs-12 d-inline-block mt-1">← Voltar para a viagem</a>
+        </div>
+    </div>
+    <div class="page-header-right ms-auto">
+        <a href="{% url 'lodging_create' trip.pk %}" class="btn btn-primary">
+            <i class="feather-plus me-2"></i>Nova hospedagem
+        </a>
+    </div>
+</div>
+
+{% include 'includes/offline_sync.html' %}
+
+<div class="card">
+    <div class="card-body p-0">
+        {% if lodgings %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Entrada</th>
+                            <th>Saída</th>
+                            <th>Noites</th>
+                            <th>Cidade/UF</th>
+                            <th>Valor</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for lodging in lodgings %}
+                            <tr class="position-relative">
+                                <td><a href="{% url 'lodging_detail' trip.pk lodging.pk %}" class="stretched-link text-reset">{{ lodging.check_in|date:'d/m/Y H:i' }}</a></td>
+                                <td>{{ lodging.check_out|date:'d/m/Y H:i' }}</td>
+                                <td>{{ lodging.nights }}</td>
+                                <td>{{ lodging.city }}/{{ lodging.state }}</td>
+                                <td>R$ {{ lodging.amount_spent }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="p-4 text-muted">Nenhuma hospedagem registrada ainda.</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
