@@ -1,7 +1,39 @@
+from django.conf import settings
 from django.test import TestCase
 from django.urls import reverse
 
 from accounts.models import User
+
+
+class ThemeCssRulesTests(TestCase):
+    def _theme_css(self):
+        path = settings.BASE_DIR / 'static' / 'css' / 'theme.css'
+        return path.read_text()
+
+    def test_dark_skin_styles_options(self):
+        css = self._theme_css()
+        self.assertIn('html.app-skin-dark option', css)
+        self.assertIn('background-color: #0f172a', css)
+        self.assertIn('color: #fff', css)
+
+    def test_theme_css_rules_are_dark_scoped(self):
+        css = self._theme_css()
+        selectors = []
+        depth = 0
+        current = []
+        for char in css:
+            if char == '{':
+                if depth == 0:
+                    selectors.append(''.join(current).strip())
+                depth += 1
+            elif char == '}':
+                depth = max(0, depth - 1)
+                if depth == 0:
+                    current = []
+            elif depth == 0 and char != '\n':
+                current.append(char)
+        for selector in selectors:
+            self.assertIn('app-skin-dark', selector)
 
 
 class ThemeMarkupTests(TestCase):
