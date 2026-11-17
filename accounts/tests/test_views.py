@@ -12,6 +12,11 @@ class LoginPageTests(TestCase):
         self.assertContains(response, 'E-mail')
         self.assertNotContains(response, 'nxl-navigation')
 
+    def test_login_page_renders_theme_toggle(self):
+        response = self.client.get(reverse('login'))
+        self.assertContains(response, 'data-theme-toggle')
+        self.assertContains(response, 'aria-label="Ativar tema escuro"')
+
 
 class LoginAuthenticationTests(TestCase):
     def setUp(self):

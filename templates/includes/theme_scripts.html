@@ -1,0 +1,14 @@
+{% load static %}
+<script data-theme-init>
+(function () {
+    try {
+        if (window.localStorage.getItem('trip-manager-theme') === 'dark') {
+            document.documentElement.classList.add('app-skin-dark');
+        }
+    } catch (error) {
+        // Storage unavailable: light theme is the default.
+    }
+})();
+</script>
+<link rel="stylesheet" type="text/css" href="{% static 'css/theme.css' %}">
+<script src="{% static 'js/theme.js' %}" defer></script>

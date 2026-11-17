@@ -26,6 +26,8 @@ class ProjectAssetsTests(SimpleTestCase):
             'js/ibge_city_autocomplete.js',
             'js/offline_db.js',
             'js/sync_client.js',
+            'js/theme.js',
+            'css/theme.css',
             'trips/js/dashboard_charts.js',
             'reports/js/report_download.js',
         ]:
