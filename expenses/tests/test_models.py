@@ -30,6 +30,12 @@ def create_trip(user, trip_type=TripType.CAR):
     )
 
 
+class MealMetaLabelTests(TestCase):
+    def test_verbose_name_follows_prd_section_9_1(self):
+        self.assertEqual(Meal._meta.verbose_name, 'Alimentação')
+        self.assertEqual(Meal._meta.verbose_name_plural, 'Alimentações')
+
+
 class ExpenseIdIsUuidTests(TestCase):
     def test_all_expense_models_use_uuid_ids(self):
         trip = create_trip(create_user())

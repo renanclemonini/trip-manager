@@ -54,8 +54,8 @@ class Meal(TimestampedModel):
     datetime = models.DateTimeField('Data/hora')
 
     class Meta:
-        verbose_name = 'Refeição'
-        verbose_name_plural = 'Refeições'
+        verbose_name = 'Alimentação'
+        verbose_name_plural = 'Alimentações'
         ordering = ['-datetime']
 
     def __str__(self):
