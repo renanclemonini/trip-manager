@@ -16,9 +16,19 @@ gastos de uma viagem: abastecimentos (carro), hospedagem, alimentação e passei
 
 ```bash
 cp .env.example .env             # opcional (defaults cobrem o dev)
-docker compose up -d             # web em http://localhost:8003 + Postgres 18
+./dev-up                         # web em http://localhost:8004 + Postgres 18
 docker compose exec web python manage.py createsuperuser --email voce@exemplo.com
 docker compose exec web python manage.py test
+```
+
+Atalhos na raiz (links simbólicos para `scripts/`, funcionam de qualquer
+diretório):
+
+```bash
+./dev-up            # docker compose up -d
+./dev-up --build    # reconstrói a imagem antes de subir
+./dev-down          # docker compose down
+./dev-down -v       # remove também o volume (apaga o banco de dev — irreversível!)
 ```
 
 - Usuários são criados pelo Django Admin (`/admin/`); login é por e-mail.
