@@ -78,7 +78,7 @@
                 <i class="feather-home me-2"></i>Hospedagens
             </a>
             <a href="{% url 'meal_list' trip.pk %}" class="btn btn-light btn-sm">
-                <i class="feather-coffee me-2"></i>Refeições
+                <i class="feather-coffee me-2"></i>Alimentação
             </a>
             {% if trip.trip_type == 'bus' %}
                 <a href="{% url 'sightseeing_list' trip.pk %}" class="btn btn-light btn-sm">

@@ -1,3 +1,4 @@
+import re
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
@@ -216,6 +217,30 @@ class TripDetailViewTests(TestCase):
         )
         self.assertEqual(response.status_code, 302)
         self.assertIn(reverse('login'), response['Location'])
+
+
+class TripDetailMealLinkLabelTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            email='meal-label@example.com', password='strong-pass-123'
+        )
+        self.trip = create_trip(self.user)
+        self.client.force_login(self.user)
+
+    def test_lancamentos_card_uses_alimentacao_label(self):
+        response = self.client.get(
+            reverse('trip_detail', args=[self.trip.pk])
+        )
+        self.assertNotContains(response, 'Refeições')
+        content = response.content.decode()
+        self.assertRegex(
+            content,
+            re.compile(
+                f'<a href="{reverse("meal_list", args=[self.trip.pk])}" '
+                r'class="btn btn-light btn-sm">.*?Alimentação.*?</a>',
+                re.DOTALL,
+            ),
+        )
 
 
 class TripDetailTransportSummaryTests(TestCase):
