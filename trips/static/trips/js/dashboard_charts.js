@@ -34,16 +34,19 @@
 
     function themedConfig(config, theme) {
         var options = themeOptions(theme);
-        return {
+        var merged = Object.assign({}, config, {
             chart: Object.assign({}, config.chart, options.chart),
-            labels: config.labels,
-            series: config.series,
-            stroke: config.stroke,
             grid: Object.assign({}, config.grid, options.grid),
             legend: Object.assign({}, config.legend, options.legend),
             xaxis: Object.assign({}, config.xaxis, options.xaxis),
             yaxis: Object.assign({}, config.yaxis, options.yaxis),
-        };
+        });
+        Object.keys(merged).forEach(function (key) {
+            if (merged[key] === undefined) {
+                delete merged[key];
+            }
+        });
+        return merged;
     }
 
     function renderChart(element, config) {
