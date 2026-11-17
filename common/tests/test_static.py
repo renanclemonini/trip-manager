@@ -27,6 +27,7 @@ class ProjectAssetsTests(SimpleTestCase):
             'js/offline_db.js',
             'js/sync_client.js',
             'trips/js/dashboard_charts.js',
+            'reports/js/report_download.js',
         ]:
             with self.subTest(asset=asset):
                 self.assertIsNotNone(finders.find(asset))

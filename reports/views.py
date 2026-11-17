@@ -1,5 +1,5 @@
 from django.contrib import messages
-from django.http import HttpResponse
+from django.http import Http404, HttpResponse
 from django.shortcuts import redirect
 from django.views.generic import FormView
 
@@ -33,6 +33,37 @@ class ReportGenerateView(TripContextMixin, FormView):
         response = HttpResponse(pdf_content, content_type='application/pdf')
         response['Content-Disposition'] = (
             f'attachment; filename="relatorio-viagem-{trip.pk}.pdf"'
+        )
+        return response
+
+
+class FinalReportGenerateView(TripContextMixin, FormView):
+    form_class = ReportChartForm
+    template_name = 'reports/final_report_form.html'
+
+    def get_trip(self):
+        trip = super().get_trip()
+        if not trip.is_completed:
+            raise Http404
+        return trip
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        trip = self.get_trip()
+        context['dashboard'] = get_trip_dashboard(trip)
+        context['download_filename'] = (
+            f'relatorio-final-viagem-{trip.pk}.pdf'
+        )
+        return context
+
+    def form_valid(self, form):
+        trip = self.get_trip()
+        pdf_content = pdf_builder.build_final_report_pdf(
+            trip, form.cleaned_data['chart_type']
+        )
+        response = HttpResponse(pdf_content, content_type='application/pdf')
+        response['Content-Disposition'] = (
+            f'attachment; filename="relatorio-final-viagem-{trip.pk}.pdf"'
         )
         return response
 

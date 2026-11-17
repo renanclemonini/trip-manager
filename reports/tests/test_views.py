@@ -1,10 +1,11 @@
-from datetime import date
+from datetime import date, timedelta
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core import mail
 from django.test import TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 
 from trips.models import Trip, TripType
 
@@ -15,7 +16,7 @@ def create_user(email):
     )
 
 
-def create_trip(user, trip_type=TripType.CAR):
+def create_trip(user, trip_type=TripType.CAR, end_date=None):
     return Trip.objects.create(
         created_by=user,
         origin_city='São Paulo',
@@ -24,6 +25,7 @@ def create_trip(user, trip_type=TripType.CAR):
         destination_state='PR',
         trip_type=trip_type,
         start_date=date(2026, 10, 1),
+        end_date=end_date,
     )
 
 
@@ -99,6 +101,105 @@ class ReportGenerateViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'reports/report_form.html')
         self.assertIn('chart_type', response.context['form'].errors)
+
+
+class FinalReportFormViewTests(TestCase):
+    def setUp(self):
+        self.user = create_user('final-report-form@example.com')
+        self.trip = create_trip(self.user, end_date=timezone.localdate())
+        self.client.force_login(self.user)
+        self.url = reverse('report_final', args=[self.trip.pk])
+
+    def test_get_renders_form_for_completed_trip(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'reports/final_report_form.html')
+        self.assertContains(response, 'Barras')
+        self.assertContains(response, 'Linha')
+        self.assertContains(response, 'Pizza')
+        self.assertContains(response, 'Gerar PDF final')
+        self.assertContains(response, 'checked')
+        self.assertContains(
+            response,
+            'O relatório considera apenas lançamentos já sincronizados '
+            'com o servidor',
+        )
+
+    def test_get_unfinished_trip_returns_404(self):
+        self.trip.end_date = None
+        self.trip.save()
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 404)
+
+    def test_get_future_end_date_returns_404(self):
+        self.trip.end_date = timezone.localdate() + timedelta(days=1)
+        self.trip.save()
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 404)
+
+    def test_get_past_end_date_is_allowed(self):
+        self.trip.end_date = timezone.localdate() - timedelta(days=1)
+        self.trip.save()
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+
+    def test_anonymous_is_redirected_to_login(self):
+        self.client.logout()
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse('login'), response['Location'])
+
+    def test_other_user_can_open_form(self):
+        other = create_user('final-report-other@example.com')
+        self.client.force_login(other)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+
+
+class FinalReportGenerateViewTests(TestCase):
+    def setUp(self):
+        self.user = create_user('final-report-generate@example.com')
+        self.trip = create_trip(self.user, end_date=timezone.localdate())
+        self.client.force_login(self.user)
+        self.url = reverse('report_final', args=[self.trip.pk])
+
+    @patch(
+        'reports.views.pdf_builder.build_final_report_pdf',
+        return_value=b'%PDF-final-content',
+    )
+    def test_post_returns_pdf_attachment(self, build_pdf):
+        response = self.client.post(self.url, {'chart_type': 'bar'})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'application/pdf')
+        self.assertIn(
+            f'attachment; filename="relatorio-final-viagem-{self.trip.pk}.pdf"',
+            response['Content-Disposition'],
+        )
+        self.assertEqual(response.content, b'%PDF-final-content')
+        build_pdf.assert_called_once_with(self.trip, 'bar')
+
+    @patch('reports.views.pdf_builder.build_final_report_pdf')
+    def test_post_without_chart_type_shows_required_error(self, build_pdf):
+        response = self.client.post(self.url, {})
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('chart_type', response.context['form'].errors)
+        build_pdf.assert_not_called()
+
+    def test_invalid_chart_type_shows_form_errors(self):
+        response = self.client.post(self.url, {'chart_type': 'radar'})
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'reports/final_report_form.html')
+        self.assertIn('chart_type', response.context['form'].errors)
+
+    @patch('reports.views.pdf_builder.build_final_report_pdf')
+    def test_post_uncompleted_trip_returns_404_and_does_not_build(
+        self, build_pdf
+    ):
+        self.trip.end_date = None
+        self.trip.save()
+        response = self.client.post(self.url, {'chart_type': 'pie'})
+        self.assertEqual(response.status_code, 404)
+        build_pdf.assert_not_called()
 
 
 class ReportSendViewTests(TestCase):

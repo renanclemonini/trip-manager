@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 from common.choices import State
 from common.models import TimestampedModel
@@ -43,4 +44,12 @@ class Trip(TimestampedModel):
         return (
             f'{self.origin_city}/{self.origin_state} → '
             f'{self.destination_city}/{self.destination_state}'
+        )
+
+    @property
+    def is_completed(self):
+        """A trip is completed when its end date is set and not in the future."""
+        return (
+            self.end_date is not None
+            and self.end_date <= timezone.localdate()
         )

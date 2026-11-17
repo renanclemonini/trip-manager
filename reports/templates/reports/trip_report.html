@@ -24,58 +24,10 @@
         {{ trip.start_date|date:'d/m/Y' }}{% if trip.end_date %} a {{ trip.end_date|date:'d/m/Y' }}{% endif %}
     </p>
 
-    <h2>Totais por categoria</h2>
-    <table>
-        <thead>
-            <tr>
-                <th>Categoria</th>
-                <th>Valor</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for category in dashboard.categories %}
-                <tr>
-                    <td>{{ category.label }}</td>
-                    <td>R$ {{ category.total }}</td>
-                </tr>
-            {% endfor %}
-            <tr class="total">
-                <td>Total gasto</td>
-                <td>R$ {{ dashboard.grand_total }}</td>
-            </tr>
-        </tbody>
-    </table>
-
-    {% if dashboard.refueling %}
-        <h2>Abastecimento</h2>
-        <table>
-            <tbody>
-                <tr><td>Distância total</td><td>{{ dashboard.refueling.total_distance|default:'—' }} km</td></tr>
-                <tr><td>Consumo médio</td><td>{{ dashboard.refueling.average_km_per_liter|default:'—' }} km/l</td></tr>
-                <tr><td>Custo médio por km</td><td>R$ {{ dashboard.refueling.average_cost_per_km|default:'—' }}</td></tr>
-                <tr><td>Preço médio por litro</td><td>R$ {{ dashboard.refueling.weighted_average_price|default:'—' }}</td></tr>
-                <tr><td>Menor preço por litro</td><td>R$ {{ dashboard.refueling.min_price|default:'—' }}</td></tr>
-                <tr><td>Maior preço por litro</td><td>R$ {{ dashboard.refueling.max_price|default:'—' }}</td></tr>
-            </tbody>
-        </table>
-    {% endif %}
-
-    <h2>Alimentação</h2>
-    <table>
-        <tbody>
-            <tr><td>Média</td><td>R$ {{ dashboard.meal_stats.average_amount|default:'—' }}</td></tr>
-            <tr><td>Menor valor</td><td>R$ {{ dashboard.meal_stats.min_amount|default:'—' }}</td></tr>
-            <tr><td>Maior valor</td><td>R$ {{ dashboard.meal_stats.max_amount|default:'—' }}</td></tr>
-        </tbody>
-    </table>
-
-    <h2>Gastos por categoria ({{ chart_type_label }})</h2>
-    <img src="{{ category_chart }}" alt="Gastos por categoria">
-
-    {% if consumption_chart %}
-        <h2>Consumo (km/l)</h2>
-        <img src="{{ consumption_chart }}" alt="Consumo por abastecimento">
-    {% endif %}
+    {% include 'reports/_totals_table.html' %}
+    {% include 'reports/_refueling_stats.html' %}
+    {% include 'reports/_meal_stats.html' %}
+    {% include 'reports/_charts.html' %}
 
     <p class="footer">Gerado em {{ generated_at|date:'d/m/Y H:i' }}.</p>
 </body>

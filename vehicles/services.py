@@ -211,6 +211,42 @@ def get_refueling_total(trip):
     return total or Decimal('0.00')
 
 
+def get_transport_details(trip):
+    """Transport data for the final report, per trip type (None if missing)."""
+    if trip.trip_type == TripType.CAR:
+        trip_vehicle = getattr(trip, 'tripvehicle', None)
+        if trip_vehicle is None:
+            return None
+        details = {
+            'vehicle': str(trip_vehicle.vehicle),
+            'initial_mileage': trip_vehicle.initial_mileage,
+        }
+        last_refueling = trip_vehicle.last_refueling
+        if last_refueling:
+            details['final_mileage'] = last_refueling.total_mileage
+        return details
+    if trip.trip_type == TripType.BUS:
+        bus_trip = getattr(trip, 'bustrip', None)
+        if bus_trip is None:
+            return None
+        return {
+            'company': bus_trip.company,
+            'vehicle': str(bus_trip.vehicle),
+            'amount_paid': bus_trip.amount_paid,
+            'start_date': bus_trip.start_date,
+        }
+    flight_trip = getattr(trip, 'flighttrip', None)
+    if flight_trip is None:
+        return None
+    return {
+        'airline': flight_trip.airline,
+        'aircraft_model': flight_trip.aircraft_model,
+        'ticket_price': flight_trip.ticket_price,
+        'departure_datetime': flight_trip.departure_datetime,
+        'return_datetime': flight_trip.return_datetime,
+    }
+
+
 def get_transport_total(trip):
     """Transport category (decision C): flight ticket or bus amount paid."""
     if trip.trip_type == TripType.PLANE:

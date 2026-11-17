@@ -1,0 +1,8 @@
+<h2>Alimentação</h2>
+<table>
+    <tbody>
+        <tr><td>Média</td><td>R$ {{ dashboard.meal_stats.average_amount|default:'—' }}</td></tr>
+        <tr><td>Menor valor</td><td>R$ {{ dashboard.meal_stats.min_amount|default:'—' }}</td></tr>
+        <tr><td>Maior valor</td><td>R$ {{ dashboard.meal_stats.max_amount|default:'—' }}</td></tr>
+    </tbody>
+</table>

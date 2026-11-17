@@ -1,9 +1,10 @@
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.timezone import make_aware
 
 from trips.models import Trip, TripType
@@ -311,6 +312,98 @@ class TripDetailTransportSummaryTests(TestCase):
             reverse('trip_detail', args=[bus_trip.pk])
         )
         self.assertNotContains(response, 'Finalizar viagem')
+
+
+SYNC_WARNING = (
+    'O relatório considera apenas lançamentos já sincronizados com o '
+    'servidor. Sincronize os dispositivos antes de gerar.'
+)
+FINAL_REPORT_HINT = (
+    'O relatório final fica disponível após a conclusão da viagem.'
+)
+
+
+class TripDetailFinalReportTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            email='final-report-detail@example.com',
+            password='strong-pass-123',
+        )
+        self.client.force_login(self.user)
+
+    def test_completed_car_trip_shows_link_and_sync_warning(self):
+        trip = create_trip(self.user, end_date=timezone.localdate())
+        response = self.client.get(
+            reverse('trip_detail', args=[trip.pk])
+        )
+        self.assertContains(
+            response, reverse('report_final', args=[trip.pk])
+        )
+        self.assertContains(response, 'Gerar relatório final')
+        self.assertContains(response, SYNC_WARNING)
+        self.assertNotContains(response, FINAL_REPORT_HINT)
+
+    def test_unfinished_car_trip_shows_hint_without_link_or_warning(self):
+        trip = create_trip(self.user)
+        response = self.client.get(
+            reverse('trip_detail', args=[trip.pk])
+        )
+        self.assertContains(response, FINAL_REPORT_HINT)
+        self.assertNotContains(
+            response, reverse('report_final', args=[trip.pk])
+        )
+        self.assertNotContains(response, SYNC_WARNING)
+
+    def test_bus_trip_with_future_end_date_shows_hint(self):
+        trip = create_trip(
+            self.user,
+            trip_type=TripType.BUS,
+            end_date=timezone.localdate() + timedelta(days=3),
+        )
+        response = self.client.get(
+            reverse('trip_detail', args=[trip.pk])
+        )
+        self.assertContains(response, FINAL_REPORT_HINT)
+        self.assertNotContains(
+            response, reverse('report_final', args=[trip.pk])
+        )
+
+    def test_completed_bus_trip_shows_final_report_link(self):
+        trip = create_trip(
+            self.user,
+            trip_type=TripType.BUS,
+            end_date=timezone.localdate(),
+        )
+        response = self.client.get(
+            reverse('trip_detail', args=[trip.pk])
+        )
+        self.assertContains(
+            response, reverse('report_final', args=[trip.pk])
+        )
+
+    def test_completed_plane_trip_shows_final_report_link(self):
+        trip = create_trip(
+            self.user,
+            trip_type=TripType.PLANE,
+            end_date=timezone.localdate(),
+        )
+        response = self.client.get(
+            reverse('trip_detail', args=[trip.pk])
+        )
+        self.assertContains(
+            response, reverse('report_final', args=[trip.pk])
+        )
+
+    def test_final_report_card_comes_before_finish_card(self):
+        trip = create_trip(self.user)
+        response = self.client.get(
+            reverse('trip_detail', args=[trip.pk])
+        )
+        content = response.content.decode()
+        self.assertLess(
+            content.index(FINAL_REPORT_HINT),
+            content.index(reverse('trip_finish', args=[trip.pk])),
+        )
 
 
 class FinishTripViewTests(TestCase):

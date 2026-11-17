@@ -1,0 +1,22 @@
+{% load humanize %}
+<h2>Totais por categoria</h2>
+<table>
+    <thead>
+        <tr>
+            <th>Categoria</th>
+            <th>Valor</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for category in dashboard.categories %}
+            <tr>
+                <td>{{ category.label }}</td>
+                <td>{% if group %}R$ {{ category.total|intcomma }}{% else %}R$ {{ category.total }}{% endif %}</td>
+            </tr>
+        {% endfor %}
+        <tr class="total">
+            <td>Total gasto</td>
+            <td>{% if group %}R$ {{ dashboard.grand_total|intcomma }}{% else %}R$ {{ dashboard.grand_total }}{% endif %}</td>
+        </tr>
+    </tbody>
+</table>

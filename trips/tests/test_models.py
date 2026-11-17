@@ -1,6 +1,7 @@
-from datetime import date
+from datetime import date, timedelta
 
 from django.test import TestCase
+from django.utils import timezone
 
 from accounts.models import User
 from trips.models import Trip, TripType
@@ -29,6 +30,41 @@ class TripStrTests(TestCase):
             start_date=date(2026, 10, 1),
         )
         self.assertEqual(str(trip), 'São Paulo/SP → Curitiba/PR')
+
+
+class TripIsCompletedTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            email='completed@example.com', password='strong-pass-123'
+        )
+        self.base = {
+            'created_by': self.user,
+            'origin_city': 'São Paulo',
+            'origin_state': 'SP',
+            'destination_city': 'Curitiba',
+            'destination_state': 'PR',
+            'trip_type': TripType.CAR,
+            'start_date': timezone.localdate() - timedelta(days=10),
+        }
+
+    def _create_trip(self, end_date):
+        return Trip.objects.create(**self.base, end_date=end_date)
+
+    def test_null_end_date_is_not_completed(self):
+        trip = self._create_trip(None)
+        self.assertFalse(trip.is_completed)
+
+    def test_past_end_date_is_completed(self):
+        trip = self._create_trip(timezone.localdate() - timedelta(days=1))
+        self.assertTrue(trip.is_completed)
+
+    def test_today_end_date_is_completed(self):
+        trip = self._create_trip(timezone.localdate())
+        self.assertTrue(trip.is_completed)
+
+    def test_future_end_date_is_not_completed(self):
+        trip = self._create_trip(timezone.localdate() + timedelta(days=1))
+        self.assertFalse(trip.is_completed)
 
 
 class TripDefaultOrderingTests(TestCase):

@@ -187,6 +187,22 @@
     </div>
 </div>
 
+<div class="card mt-3">
+    <div class="card-body p-4">
+        <h6 class="fw-semibold mb-2">Relatório final</h6>
+        {% if trip.is_completed %}
+            <p class="text-muted fs-12 mb-3">
+                O relatório considera apenas lançamentos já sincronizados com o servidor. Sincronize os dispositivos antes de gerar.
+            </p>
+            <a href="{% url 'report_final' trip.pk %}" class="btn btn-primary btn-sm">
+                <i class="feather-file-text me-2"></i>Gerar relatório final
+            </a>
+        {% else %}
+            <p class="text-muted mb-0">O relatório final fica disponível após a conclusão da viagem.</p>
+        {% endif %}
+    </div>
+</div>
+
 {% if trip.trip_type == 'car' and not trip.end_date %}
     <div class="card mt-3">
         <div class="card-body p-4">

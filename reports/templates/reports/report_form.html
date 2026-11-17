@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}Relatório — {{ trip }}{% endblock %}
 
@@ -35,7 +36,7 @@
 
 <div class="card mt-3">
     <div class="card-body p-4">
-        <form method="post" id="report-form" novalidate>
+        <form method="post" id="report-form" data-filename="{{ download_filename }}" novalidate>
             {% csrf_token %}
             <h6 class="fw-semibold mb-3">{{ form.chart_type.label }}</h6>
             <div class="d-flex flex-wrap gap-4">
@@ -63,49 +64,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-(function () {
-    'use strict';
-
-    var form = document.getElementById('report-form');
-    if (!form || !window.fetch) {
-        return;
-    }
-
-    form.addEventListener('submit', function (event) {
-        event.preventDefault();
-        var button = form.querySelector('button[type="submit"]');
-        if (button) {
-            button.disabled = true;
-        }
-        fetch(form.action, {
-            method: 'POST',
-            body: new FormData(form),
-        })
-            .then(function (response) {
-                if (!response.ok) {
-                    throw new Error('Falha ao gerar o relatório.');
-                }
-                return response.blob();
-            })
-            .then(function (blob) {
-                var link = document.createElement('a');
-                link.href = URL.createObjectURL(blob);
-                link.download = '{{ download_filename|escapejs }}';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                URL.revokeObjectURL(link.href);
-            })
-            .catch(function () {
-                form.submit();
-            })
-            .finally(function () {
-                if (button) {
-                    button.disabled = false;
-                }
-            });
-    });
-})();
-</script>
+<script src="{% static 'reports/js/report_download.js' %}"></script>
 {% endblock %}
