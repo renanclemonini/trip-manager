@@ -50,7 +50,7 @@ class TripDetailView(TripContextMixin, DetailView):
 
 
 class FinishTripView(ExpectedTripTypeMixin, FormView):
-    """Narrow RF27 exception: set end_date for an unfinished car trip only."""
+    """Narrow RF27 exception: set end_datetime for an unfinished car trip."""
 
     form_class = FinishTripForm
     template_name = 'trips/trip_finish.html'
@@ -58,7 +58,7 @@ class FinishTripView(ExpectedTripTypeMixin, FormView):
 
     def get_trip(self):
         trip = super().get_trip()
-        if trip.end_date is not None:
+        if trip.end_datetime is not None:
             raise Http404
         return trip
 
@@ -70,7 +70,7 @@ class FinishTripView(ExpectedTripTypeMixin, FormView):
     def form_valid(self, form):
         trip = self.get_trip()
         finished = services.finish_trip(
-            trip=trip, end_date=form.cleaned_data['end_date']
+            trip=trip, end_datetime=form.cleaned_data['end_datetime']
         )
         if not finished:
             raise Http404

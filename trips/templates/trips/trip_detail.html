@@ -203,11 +203,11 @@
     </div>
 </div>
 
-{% if trip.trip_type == 'car' and not trip.end_date %}
+{% if trip.trip_type == 'car' and not trip.end_datetime %}
     <div class="card mt-3">
         <div class="card-body p-4">
             <h6 class="fw-semibold mb-2">Viagem em andamento</h6>
-            <p class="text-muted mb-3">Defina a data de fim quando a viagem terminar.</p>
+            <p class="text-muted mb-3">Defina a data e hora de fim quando a viagem terminar.</p>
             <a href="{% url 'trip_finish' trip.pk %}" class="btn btn-primary btn-sm">Finalizar viagem</a>
         </div>
     </div>

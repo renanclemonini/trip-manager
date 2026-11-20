@@ -81,7 +81,7 @@ def create_car_trip(user):
         destination_city='Curitiba',
         destination_state='PR',
         trip_type=TripType.CAR,
-        start_date=date(2026, 10, 1),
+        start_datetime=timezone.now() - timedelta(days=1),
     )
     vehicle = Vehicle.objects.create(
         vehicle_type=VehicleType.CAR, brand='Fiat', model='Argo'
@@ -116,7 +116,7 @@ def create_car_trip_without_refueling(user):
         destination_city='Curitiba',
         destination_state='PR',
         trip_type=TripType.CAR,
-        start_date=date(2026, 10, 1),
+        start_datetime=timezone.now() - timedelta(days=1),
     )
     vehicle = Vehicle.objects.create(
         vehicle_type=VehicleType.CAR, brand='Fiat', model='Argo'
@@ -135,8 +135,8 @@ def create_bus_trip(user):
         destination_city='Foz do Iguaçu',
         destination_state='PR',
         trip_type=TripType.BUS,
-        start_date=date(2026, 9, 1),
-        end_date=timezone.localdate() - timedelta(days=1),
+        start_datetime=timezone.now() - timedelta(days=30),
+        end_datetime=timezone.now() - timedelta(hours=1),
     )
     vehicle = Vehicle.objects.create(
         vehicle_type=VehicleType.BUS, brand='Marcopolo', model='Paradiso'
@@ -159,8 +159,8 @@ def create_plane_trip(user, **flight_overrides):
         destination_city='Recife',
         destination_state='PE',
         trip_type=TripType.PLANE,
-        start_date=date(2026, 10, 1),
-        end_date=timezone.localdate() - timedelta(days=1),
+        start_datetime=timezone.now() - timedelta(days=30),
+        end_datetime=timezone.now() - timedelta(hours=1),
     )
     flight_data = {
         'airline': 'Azul',
@@ -199,7 +199,7 @@ class TransportDetailsTests(TestCase):
             destination_city='Curitiba',
             destination_state='PR',
             trip_type=TripType.CAR,
-            start_date=date(2026, 10, 1),
+            start_datetime=timezone.now() - timedelta(days=1),
         )
         self.assertIsNone(vehicles_services.get_transport_details(trip))
 
@@ -323,14 +323,14 @@ class PdfBuilderTests(TestCase):
             destination_city='Brasília',
             destination_state='DF',
             trip_type=TripType.PLANE,
-            start_date=date(2026, 12, 1),
+            start_datetime=timezone.now() - timedelta(days=1),
         )
         pdf = pdf_builder.build_trip_report_pdf(trip, 'bar')
         self.assertTrue(pdf.startswith(b'%PDF'))
 
     def test_final_car_report_starts_with_pdf_magic(self):
         trip = create_car_trip(create_user('final-pdf-car@example.com'))
-        trip.end_date = timezone.localdate()
+        trip.end_datetime = timezone.now() - timedelta(hours=1)
         trip.save()
         pdf = pdf_builder.build_final_report_pdf(trip, 'pie')
         self.assertTrue(pdf.startswith(b'%PDF'))

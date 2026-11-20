@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}Finalizar viagem — Gerenciador de Viagem{% endblock %}
 
@@ -21,9 +22,9 @@
             {% endif %}
             <div class="row g-3">
                 <div class="col-md-4">
-                    <label for="{{ form.end_date.id_for_label }}" class="form-label">{{ form.end_date.label }}</label>
-                    {{ form.end_date }}
-                    {% for error in form.end_date.errors %}
+                    <label for="{{ form.end_datetime.id_for_label }}" class="form-label">{{ form.end_datetime.label }}</label>
+                    {{ form.end_datetime }}
+                    {% for error in form.end_datetime.errors %}
                         <div class="text-danger fs-12 mt-1">{{ error }}</div>
                     {% endfor %}
                 </div>
@@ -35,4 +36,6 @@
         </form>
     </div>
 </div>
+
+{% include 'includes/form_masks_scripts.html' %}
 {% endblock %}

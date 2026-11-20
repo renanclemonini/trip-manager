@@ -1,7 +1,8 @@
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 from django.test import TestCase
+from django.utils import timezone
 from django.utils.timezone import make_aware
 
 from accounts.models import User
@@ -38,7 +39,7 @@ class GetTripPostCreatePathTests(TestCase):
             destination_city='Curitiba',
             destination_state='PR',
             trip_type=trip_type,
-            start_date=date(2026, 10, 1),
+            start_datetime=timezone.now() - timedelta(days=1),
         )
 
     def test_car_trip_redirects_to_vehicle_registration(self):
@@ -74,7 +75,7 @@ class SaveTripAssignsCreatedByTests(TestCase):
             'destination_city': 'Curitiba',
             'destination_state': 'PR',
             'trip_type': TripType.CAR,
-            'start_date': '2026-10-01',
+            'start_datetime': '2026-10-01T10:00',
         })
         self.assertTrue(form.is_valid(), form.errors)
         trip = services.save_trip(form=form, created_by=user)
@@ -96,7 +97,7 @@ def create_trip(user, trip_type=TripType.CAR, initial_mileage=1000):
         destination_city='Curitiba',
         destination_state='PR',
         trip_type=trip_type,
-        start_date=date(2026, 10, 1),
+        start_datetime=timezone.now() - timedelta(days=1),
     )
     if trip_type == TripType.CAR:
         vehicle = Vehicle.objects.create(
@@ -177,34 +178,36 @@ class FinishTripServiceTests(TestCase):
         self.user = create_user('finish-service@example.com')
         self.trip = create_trip(self.user)
 
-    def test_finish_sets_end_date(self):
+    def test_finish_sets_end_datetime(self):
+        end_datetime = timezone.now()
         result = services.finish_trip(
-            trip=self.trip, end_date=date(2026, 10, 15)
+            trip=self.trip, end_datetime=end_datetime
         )
         self.assertTrue(result)
         self.trip.refresh_from_db()
-        self.assertEqual(self.trip.end_date, date(2026, 10, 15))
+        self.assertEqual(self.trip.end_datetime, end_datetime)
 
     def test_finish_is_rejected_when_already_finished(self):
-        self.trip.end_date = date(2026, 10, 15)
+        finished_at = timezone.now()
+        self.trip.end_datetime = finished_at
         self.trip.save()
         result = services.finish_trip(
-            trip=self.trip, end_date=date(2026, 10, 20)
+            trip=self.trip, end_datetime=timezone.now() + timedelta(days=1)
         )
         self.assertFalse(result)
         self.trip.refresh_from_db()
-        self.assertEqual(self.trip.end_date, date(2026, 10, 15))
+        self.assertEqual(self.trip.end_datetime, finished_at)
 
     def test_finish_is_rejected_for_non_car_trip(self):
         bus_trip = create_trip(
             create_user('finish-service-bus@example.com'), TripType.BUS
         )
         result = services.finish_trip(
-            trip=bus_trip, end_date=date(2026, 10, 15)
+            trip=bus_trip, end_datetime=timezone.now()
         )
         self.assertFalse(result)
         bus_trip.refresh_from_db()
-        self.assertIsNone(bus_trip.end_date)
+        self.assertIsNone(bus_trip.end_datetime)
 
 
 class TripDashboardCarTests(TestCase):

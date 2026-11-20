@@ -37,8 +37,8 @@
                                     <a href="{% url 'trip_detail' trip.pk %}">{{ trip }}</a>
                                 </td>
                                 <td><span class="badge bg-soft-primary text-primary">{{ trip.get_trip_type_display }}</span></td>
-                                <td>{{ trip.start_date|date:'d/m/Y' }}</td>
-                                <td>{{ trip.end_date|date:'d/m/Y'|default:'—' }}</td>
+                                <td>{{ trip.start_datetime|date:'d/m/Y H:i' }}</td>
+                                <td>{{ trip.end_datetime|date:'d/m/Y H:i'|default:'—' }}</td>
                             </tr>
                         {% endfor %}
                     </tbody>

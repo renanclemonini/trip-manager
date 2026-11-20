@@ -43,20 +43,20 @@ def get_trip_post_create_path(trip):
     return reverse(url_name, kwargs={'trip_id': trip.pk})
 
 
-def finish_trip(*, trip, end_date):
+def finish_trip(*, trip, end_datetime):
     """Finish a car trip, only once (RF27).
 
     The conditional update is atomic: it guards against a concurrent second
-    finish attempt that could otherwise overwrite an already set end_date.
+    finish attempt that could otherwise overwrite an already set end_datetime.
     """
     updated = (
         Trip.objects
         .filter(
             pk=trip.pk,
             trip_type=TripType.CAR,
-            end_date__isnull=True,
+            end_datetime__isnull=True,
         )
-        .update(end_date=end_date, updated_at=timezone.now())
+        .update(end_datetime=end_datetime, updated_at=timezone.now())
     )
     return updated == 1
 

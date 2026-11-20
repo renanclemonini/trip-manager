@@ -1,6 +1,7 @@
 import re
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta, timezone as dt_timezone
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -12,6 +13,10 @@ from trips.models import Trip, TripType
 from vehicles.models import Refueling, TripVehicle, Vehicle, VehicleType
 
 
+def local_input(dt):
+    return timezone.localtime(dt).strftime('%Y-%m-%dT%H:%M')
+
+
 def create_trip(user, **overrides):
     defaults = {
         'origin_city': 'São Paulo',
@@ -19,7 +24,7 @@ def create_trip(user, **overrides):
         'destination_city': 'Curitiba',
         'destination_state': 'PR',
         'trip_type': TripType.CAR,
-        'start_date': date(2026, 10, 1),
+        'start_datetime': timezone.now() - timedelta(days=1),
     }
     defaults.update(overrides)
     return Trip.objects.create(created_by=user, **defaults)
@@ -79,6 +84,15 @@ class TripListAccessTests(TestCase):
         response = self.client.get(reverse('home'))
         self.assertContains(response, 'São Paulo/SP → Curitiba/PR')
 
+    def test_list_shows_start_datetime_with_hour(self):
+        trip = create_trip(self.user)
+        self.client.force_login(self.user)
+        response = self.client.get(reverse('home'))
+        expected = timezone.localtime(
+            trip.start_datetime
+        ).strftime('%d/%m/%Y %H:%M')
+        self.assertContains(response, expected)
+
 
 class TripCreateViewTests(TestCase):
     def setUp(self):
@@ -94,7 +108,7 @@ class TripCreateViewTests(TestCase):
             'destination_city': 'Curitiba',
             'destination_state': 'PR',
             'trip_type': TripType.CAR,
-            'start_date': '2026-10-01',
+            'start_datetime': local_input(timezone.now() - timedelta(days=1)),
         }
         data.update(overrides)
         return data
@@ -128,7 +142,7 @@ class TripCreateViewTests(TestCase):
             self._data(
                 trip_type=TripType.BUS,
                 origin_city='Campinas',
-                end_date='2026-11-05',
+                end_datetime=local_input(timezone.now() + timedelta(days=4)),
             ),
         )
         trip = Trip.objects.get(origin_city='Campinas')
@@ -140,20 +154,21 @@ class TripCreateViewTests(TestCase):
             self._data(
                 trip_type=TripType.PLANE,
                 origin_city='Santos',
-                end_date='2026-12-05',
+                end_datetime=local_input(timezone.now() + timedelta(days=4)),
             ),
         )
         trip = Trip.objects.get(origin_city='Santos')
         self.assertEqual(response['Location'], f'/trip/{trip.pk}/flight/new/')
 
-    def test_post_car_ignores_end_date_sent_by_client(self):
+    def test_post_car_ignores_end_datetime_sent_by_client(self):
         self.client.post(
-            reverse('trip_create'), self._data(end_date='2026-10-05')
+            reverse('trip_create'),
+            self._data(end_datetime=local_input(timezone.now())),
         )
         trip = Trip.objects.get(origin_city='São Paulo')
-        self.assertIsNone(trip.end_date)
+        self.assertIsNone(trip.end_datetime)
 
-    def test_post_bus_without_end_date_does_not_create_trip(self):
+    def test_post_bus_without_end_datetime_does_not_create_trip(self):
         response = self.client.post(
             reverse('trip_create'),
             self._data(trip_type=TripType.BUS, origin_city='Campinas'),
@@ -161,7 +176,7 @@ class TripCreateViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(Trip.objects.count(), 0)
 
-    def test_post_plane_without_end_date_does_not_create_trip(self):
+    def test_post_plane_without_end_datetime_does_not_create_trip(self):
         response = self.client.post(
             reverse('trip_create'),
             self._data(trip_type=TripType.PLANE, origin_city='Santos'),
@@ -314,7 +329,7 @@ class TripDetailTransportSummaryTests(TestCase):
         )
         self.assertContains(response, 'Cadastrar dados do voo')
 
-    def test_car_trip_without_end_date_shows_finish_call_to_action(self):
+    def test_car_trip_without_end_datetime_shows_finish_call_to_action(self):
         response = self.client.get(
             reverse('trip_detail', args=[self.trip.pk])
         )
@@ -323,8 +338,8 @@ class TripDetailTransportSummaryTests(TestCase):
         )
         self.assertContains(response, 'Finalizar viagem')
 
-    def test_car_trip_with_end_date_hides_finish_call_to_action(self):
-        self.trip.end_date = date(2026, 10, 10)
+    def test_car_trip_with_end_datetime_hides_finish_call_to_action(self):
+        self.trip.end_datetime = timezone.now()
         self.trip.save()
         response = self.client.get(
             reverse('trip_detail', args=[self.trip.pk])
@@ -357,7 +372,9 @@ class TripDetailFinalReportTests(TestCase):
         self.client.force_login(self.user)
 
     def test_completed_car_trip_shows_link_and_sync_warning(self):
-        trip = create_trip(self.user, end_date=timezone.localdate())
+        trip = create_trip(
+            self.user, end_datetime=timezone.now() - timedelta(hours=1)
+        )
         response = self.client.get(
             reverse('trip_detail', args=[trip.pk])
         )
@@ -379,11 +396,11 @@ class TripDetailFinalReportTests(TestCase):
         )
         self.assertNotContains(response, SYNC_WARNING)
 
-    def test_bus_trip_with_future_end_date_shows_hint(self):
+    def test_bus_trip_with_future_end_datetime_shows_hint(self):
         trip = create_trip(
             self.user,
             trip_type=TripType.BUS,
-            end_date=timezone.localdate() + timedelta(days=3),
+            end_datetime=timezone.now() + timedelta(days=3),
         )
         response = self.client.get(
             reverse('trip_detail', args=[trip.pk])
@@ -397,7 +414,7 @@ class TripDetailFinalReportTests(TestCase):
         trip = create_trip(
             self.user,
             trip_type=TripType.BUS,
-            end_date=timezone.localdate(),
+            end_datetime=timezone.now() - timedelta(hours=1),
         )
         response = self.client.get(
             reverse('trip_detail', args=[trip.pk])
@@ -410,7 +427,7 @@ class TripDetailFinalReportTests(TestCase):
         trip = create_trip(
             self.user,
             trip_type=TripType.PLANE,
-            end_date=timezone.localdate(),
+            end_datetime=timezone.now() - timedelta(hours=1),
         )
         response = self.client.get(
             reverse('trip_detail', args=[trip.pk])
@@ -442,54 +459,61 @@ class FinishTripViewTests(TestCase):
         self.trip = create_trip(self.owner)
         self.client.force_login(self.owner)
 
-    def test_get_renders_form_with_today_default(self):
+    @patch('django.utils.timezone.now')
+    def test_get_renders_form_with_local_now_default(self, now_mock):
+        now_mock.return_value = datetime(
+            2026, 1, 1, 15, 0, tzinfo=dt_timezone.utc
+        )
         response = self.client.get(
             reverse('trip_finish', args=[self.trip.pk])
         )
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'trips/trip_finish.html')
-        self.assertEqual(
-            response.context['form'].fields['end_date'].initial, date.today()
-        )
+        self.assertContains(response, 'value="2026-01-01T12:00"')
 
-    def test_post_valid_sets_end_date_and_redirects_to_detail(self):
+    def test_post_valid_sets_end_datetime_and_redirects_to_detail(self):
         response = self.client.post(
             reverse('trip_finish', args=[self.trip.pk]),
-            {'end_date': '2026-10-15'},
+            {'end_datetime': local_input(timezone.now())},
         )
         self.trip.refresh_from_db()
-        self.assertEqual(self.trip.end_date, date(2026, 10, 15))
+        self.assertAlmostEqual(
+            self.trip.end_datetime.timestamp(),
+            timezone.now().timestamp(),
+            delta=120,
+        )
         self.assertRedirects(
             response, reverse('trip_detail', args=[self.trip.pk])
         )
 
-    def test_post_end_date_before_start_is_invalid(self):
+    def test_post_end_datetime_before_start_is_invalid(self):
         response = self.client.post(
             reverse('trip_finish', args=[self.trip.pk]),
-            {'end_date': '2026-09-30'},
+            {'end_datetime': '2020-01-01T10:00'},
         )
         self.assertEqual(response.status_code, 200)
         self.trip.refresh_from_db()
-        self.assertIsNone(self.trip.end_date)
+        self.assertIsNone(self.trip.end_datetime)
 
     def test_get_after_finished_returns_404(self):
-        self.trip.end_date = date(2026, 10, 15)
+        self.trip.end_datetime = timezone.now()
         self.trip.save()
         response = self.client.get(
             reverse('trip_finish', args=[self.trip.pk])
         )
         self.assertEqual(response.status_code, 404)
 
-    def test_post_after_finished_returns_404_and_keeps_end_date(self):
-        self.trip.end_date = date(2026, 10, 15)
+    def test_post_after_finished_returns_404_and_keeps_end_datetime(self):
+        finished_at = timezone.now()
+        self.trip.end_datetime = finished_at
         self.trip.save()
         response = self.client.post(
             reverse('trip_finish', args=[self.trip.pk]),
-            {'end_date': '2026-10-20'},
+            {'end_datetime': local_input(timezone.now() + timedelta(days=1))},
         )
         self.assertEqual(response.status_code, 404)
         self.trip.refresh_from_db()
-        self.assertEqual(self.trip.end_date, date(2026, 10, 15))
+        self.assertEqual(self.trip.end_datetime, finished_at)
 
     def test_non_car_trip_returns_404(self):
         bus_trip = create_trip(self.owner, trip_type=TripType.BUS)
@@ -502,13 +526,17 @@ class FinishTripViewTests(TestCase):
         self.client.force_login(self.other)
         response = self.client.post(
             reverse('trip_finish', args=[self.trip.pk]),
-            {'end_date': '2026-10-15'},
+            {'end_datetime': local_input(timezone.now())},
         )
         self.assertRedirects(
             response, reverse('trip_detail', args=[self.trip.pk])
         )
         self.trip.refresh_from_db()
-        self.assertEqual(self.trip.end_date, date(2026, 10, 15))
+        self.assertAlmostEqual(
+            self.trip.end_datetime.timestamp(),
+            timezone.now().timestamp(),
+            delta=120,
+        )
 
     def test_anonymous_is_redirected_to_login(self):
         self.client.logout()

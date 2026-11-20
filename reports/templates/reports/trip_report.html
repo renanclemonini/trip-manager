@@ -21,7 +21,7 @@
     <h1>Relatório da viagem</h1>
     <p><strong>{{ trip }}</strong> · {{ trip.get_trip_type_display }}</p>
     <p class="muted">
-        {{ trip.start_date|date:'d/m/Y' }}{% if trip.end_date %} a {{ trip.end_date|date:'d/m/Y' }}{% endif %}
+        {{ trip.start_datetime|date:'d/m/Y H:i' }}{% if trip.end_datetime %} a {{ trip.end_datetime|date:'d/m/Y H:i' }}{% endif %}
     </p>
 
     {% include 'reports/_totals_table.html' %}

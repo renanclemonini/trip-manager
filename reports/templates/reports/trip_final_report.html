@@ -25,7 +25,7 @@
     <h1>Relatório final da viagem</h1>
     <p><strong>{{ trip }}</strong> · {{ trip.get_trip_type_display }}</p>
     <p class="muted">
-        {{ trip.start_date|date:'d/m/Y' }}{% if trip.end_date %} a {{ trip.end_date|date:'d/m/Y' }}{% endif %}
+        {{ trip.start_datetime|date:'d/m/Y H:i' }}{% if trip.end_datetime %} a {{ trip.end_datetime|date:'d/m/Y H:i' }}{% endif %}
     </p>
 
     <h2>Dados gerais</h2>
@@ -34,8 +34,8 @@
             <tr><td>Origem</td><td>{{ trip.origin_city }}/{{ trip.origin_state }}</td></tr>
             <tr><td>Destino</td><td>{{ trip.destination_city }}/{{ trip.destination_state }}</td></tr>
             <tr><td>Tipo</td><td>{{ trip.get_trip_type_display }}</td></tr>
-            <tr><td>Início</td><td>{{ trip.start_date|date:'d/m/Y' }}</td></tr>
-            <tr><td>Fim</td><td>{{ trip.end_date|date:'d/m/Y' }}</td></tr>
+            <tr><td>Início</td><td>{{ trip.start_datetime|date:'d/m/Y H:i' }}</td></tr>
+            <tr><td>Fim</td><td>{{ trip.end_datetime|date:'d/m/Y H:i' }}</td></tr>
         </tbody>
     </table>
 

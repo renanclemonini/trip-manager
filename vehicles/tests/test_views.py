@@ -1,7 +1,8 @@
-from datetime import date
+from datetime import date, timedelta
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
+from django.utils import timezone
 from django.urls import reverse
 
 from trips.models import Trip, TripType
@@ -22,7 +23,7 @@ def create_trip(user, trip_type=TripType.CAR):
         destination_city='Curitiba',
         destination_state='PR',
         trip_type=trip_type,
-        start_date=date(2026, 10, 1),
+        start_datetime=timezone.now() - timedelta(days=1),
     )
 
 

@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
+from django.utils import timezone
 from django.urls import reverse
 from django.utils.timezone import localdate, make_aware
 
@@ -20,7 +21,7 @@ def create_user(email):
     )
 
 
-def create_trip(user, trip_type=TripType.CAR, end_date=None):
+def create_trip(user, trip_type=TripType.CAR, end_datetime=None):
     return Trip.objects.create(
         created_by=user,
         origin_city='São Paulo',
@@ -28,8 +29,8 @@ def create_trip(user, trip_type=TripType.CAR, end_date=None):
         destination_city='Curitiba',
         destination_state='PR',
         trip_type=trip_type,
-        start_date=date(2026, 10, 1),
-        end_date=end_date,
+        start_datetime=timezone.now() - timedelta(days=1),
+        end_datetime=end_datetime,
     )
 
 
@@ -362,7 +363,7 @@ class LodgingListCompletedTripTests(TestCase):
         self.client.force_login(self.user)
 
     def test_completed_trip_hides_create_button(self):
-        trip = create_trip(self.user, end_date=localdate())
+        trip = create_trip(self.user, end_datetime=timezone.now() - timedelta(hours=1))
         create_lodging(trip)
         response = self.client.get(reverse('lodging_list', args=[trip.pk]))
         self.assertEqual(response.status_code, 200)
@@ -387,7 +388,7 @@ class MealListCompletedTripTests(TestCase):
         self.client.force_login(self.user)
 
     def test_completed_trip_hides_create_button(self):
-        trip = create_trip(self.user, end_date=localdate())
+        trip = create_trip(self.user, end_datetime=timezone.now() - timedelta(hours=1))
         create_meal(trip)
         response = self.client.get(reverse('meal_list', args=[trip.pk]))
         self.assertEqual(response.status_code, 200)
@@ -412,7 +413,7 @@ class SightseeingListCompletedTripTests(TestCase):
         self.client.force_login(self.user)
 
     def test_completed_trip_hides_create_button(self):
-        trip = create_trip(self.user, TripType.BUS, end_date=localdate())
+        trip = create_trip(self.user, TripType.BUS, end_datetime=timezone.now() - timedelta(hours=1))
         create_sightseeing(trip)
         response = self.client.get(
             reverse('sightseeing_list', args=[trip.pk])
@@ -429,7 +430,7 @@ class SightseeingListCompletedTripTests(TestCase):
         trip = create_trip(
             self.user,
             TripType.BUS,
-            end_date=localdate() + timedelta(days=1),
+            end_datetime=timezone.now() + timedelta(days=1),
         )
         response = self.client.get(
             reverse('sightseeing_list', args=[trip.pk])

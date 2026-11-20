@@ -32,13 +32,15 @@ class Trip(TimestampedModel):
     trip_type = models.CharField(
         'Tipo de viagem', max_length=10, choices=TripType.choices
     )
-    start_date = models.DateField('Data de início')
-    end_date = models.DateField('Data de fim', null=True, blank=True)
+    start_datetime = models.DateTimeField('Data e hora de início')
+    end_datetime = models.DateTimeField(
+        'Data e hora de fim', null=True, blank=True
+    )
 
     class Meta:
         verbose_name = 'Viagem'
         verbose_name_plural = 'Viagens'
-        ordering = ['-start_date', '-id']
+        ordering = ['-start_datetime', '-id']
 
     def __str__(self):
         return (
@@ -48,8 +50,8 @@ class Trip(TimestampedModel):
 
     @property
     def is_completed(self):
-        """A trip is completed when its end date is set and not in the future."""
+        """A trip is completed when its end datetime is set and not future."""
         return (
-            self.end_date is not None
-            and self.end_date <= timezone.localdate()
+            self.end_datetime is not None
+            and self.end_datetime <= timezone.now()
         )

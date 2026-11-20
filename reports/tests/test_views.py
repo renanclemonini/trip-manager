@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import timedelta
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
@@ -16,7 +16,7 @@ def create_user(email):
     )
 
 
-def create_trip(user, trip_type=TripType.CAR, end_date=None):
+def create_trip(user, trip_type=TripType.CAR, end_datetime=None):
     return Trip.objects.create(
         created_by=user,
         origin_city='São Paulo',
@@ -24,8 +24,8 @@ def create_trip(user, trip_type=TripType.CAR, end_date=None):
         destination_city='Curitiba',
         destination_state='PR',
         trip_type=trip_type,
-        start_date=date(2026, 10, 1),
-        end_date=end_date,
+        start_datetime=timezone.now() - timedelta(days=1),
+        end_datetime=end_datetime,
     )
 
 
@@ -106,7 +106,7 @@ class ReportGenerateViewTests(TestCase):
 class FinalReportFormViewTests(TestCase):
     def setUp(self):
         self.user = create_user('final-report-form@example.com')
-        self.trip = create_trip(self.user, end_date=timezone.localdate())
+        self.trip = create_trip(self.user, end_datetime=timezone.now() - timedelta(hours=1))
         self.client.force_login(self.user)
         self.url = reverse('report_final', args=[self.trip.pk])
 
@@ -126,19 +126,19 @@ class FinalReportFormViewTests(TestCase):
         )
 
     def test_get_unfinished_trip_returns_404(self):
-        self.trip.end_date = None
+        self.trip.end_datetime = None
         self.trip.save()
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 404)
 
-    def test_get_future_end_date_returns_404(self):
-        self.trip.end_date = timezone.localdate() + timedelta(days=1)
+    def test_get_future_end_datetime_returns_404(self):
+        self.trip.end_datetime = timezone.now() + timedelta(days=1)
         self.trip.save()
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 404)
 
-    def test_get_past_end_date_is_allowed(self):
-        self.trip.end_date = timezone.localdate() - timedelta(days=1)
+    def test_get_past_end_datetime_is_allowed(self):
+        self.trip.end_datetime = timezone.now() - timedelta(hours=1)
         self.trip.save()
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
@@ -159,7 +159,7 @@ class FinalReportFormViewTests(TestCase):
 class FinalReportGenerateViewTests(TestCase):
     def setUp(self):
         self.user = create_user('final-report-generate@example.com')
-        self.trip = create_trip(self.user, end_date=timezone.localdate())
+        self.trip = create_trip(self.user, end_datetime=timezone.now() - timedelta(hours=1))
         self.client.force_login(self.user)
         self.url = reverse('report_final', args=[self.trip.pk])
 
@@ -195,7 +195,7 @@ class FinalReportGenerateViewTests(TestCase):
     def test_post_uncompleted_trip_returns_404_and_does_not_build(
         self, build_pdf
     ):
-        self.trip.end_date = None
+        self.trip.end_datetime = None
         self.trip.save()
         response = self.client.post(self.url, {'chart_type': 'pie'})
         self.assertEqual(response.status_code, 404)

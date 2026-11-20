@@ -1,8 +1,9 @@
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
+from django.utils import timezone
 from django.urls import reverse
 from django.utils.timezone import localdate, make_aware
 
@@ -19,7 +20,7 @@ def create_user(email):
     )
 
 
-def create_trip(user, trip_type=TripType.CAR, with_vehicle=True, end_date=None):
+def create_trip(user, trip_type=TripType.CAR, with_vehicle=True, end_datetime=None):
     trip = Trip.objects.create(
         created_by=user,
         origin_city='São Paulo',
@@ -27,8 +28,8 @@ def create_trip(user, trip_type=TripType.CAR, with_vehicle=True, end_date=None):
         destination_city='Curitiba',
         destination_state='PR',
         trip_type=trip_type,
-        start_date=date(2026, 10, 1),
-        end_date=end_date,
+        start_datetime=timezone.now() - timedelta(days=1),
+        end_datetime=end_datetime,
     )
     if with_vehicle:
         vehicle = Vehicle.objects.create(
@@ -198,7 +199,7 @@ class RefuelingListCompletedTripTests(TestCase):
         self.client.force_login(self.user)
 
     def test_completed_trip_hides_create_button_and_modal(self):
-        trip = create_trip(self.user, end_date=localdate())
+        trip = create_trip(self.user, end_datetime=timezone.now() - timedelta(hours=1))
         response = self.client.get(reverse('refueling_list', args=[trip.pk]))
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, 'data-bs-toggle="modal"')
@@ -212,7 +213,7 @@ class RefuelingListCompletedTripTests(TestCase):
         self.assertNotContains(response, 'js/form_masks.js')
 
     def test_completed_trip_keeps_list_and_offline_sync_panel(self):
-        trip = create_trip(self.user, end_date=localdate())
+        trip = create_trip(self.user, end_datetime=timezone.now() - timedelta(hours=1))
         refueling = create_refueling(trip)
         response = self.client.get(reverse('refueling_list', args=[trip.pk]))
         self.assertContains(response, 'id="offline-sync-panel"')

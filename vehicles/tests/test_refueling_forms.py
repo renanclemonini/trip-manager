@@ -1,7 +1,8 @@
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 from django.test import TestCase
+from django.utils import timezone
 from django.utils.timezone import make_aware
 
 from accounts.models import User
@@ -23,7 +24,7 @@ def create_car_trip(initial_mileage=1000):
         destination_city='Curitiba',
         destination_state='PR',
         trip_type=TripType.CAR,
-        start_date=date(2026, 10, 1),
+        start_datetime=timezone.now() - timedelta(days=1),
     )
     vehicle = Vehicle.objects.create(
         vehicle_type=VehicleType.CAR, brand='Fiat', model='Argo'
