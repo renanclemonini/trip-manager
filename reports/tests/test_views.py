@@ -1,13 +1,17 @@
 from datetime import timedelta
+from decimal import Decimal
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core import mail
+from django.template.loader import render_to_string
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
+from reports.services import report_data
 from trips.models import Trip, TripType
+from vehicles.models import Refueling, TripVehicle, Vehicle, VehicleType
 
 
 def create_user(email):
@@ -296,3 +300,45 @@ class ReportSendViewTests(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertIn('channel', response.context['form'].errors)
+
+
+class FinalReportTemplateLabelTests(TestCase):
+    def setUp(self):
+        self.user = create_user('final-label@example.com')
+        self.trip = create_trip(self.user)
+        vehicle = Vehicle.objects.create(
+            vehicle_type=VehicleType.CAR, brand='Fiat', model='Argo'
+        )
+        self.trip_vehicle = TripVehicle.objects.create(
+            trip=self.trip, vehicle=vehicle, initial_mileage=1000
+        )
+
+    def render_report(self):
+        context = report_data.get_final_report_context(self.trip)
+        return render_to_string(
+            'reports/trip_final_report.html', context
+        )
+
+    def test_final_mileage_set_shows_plain_final_label(self):
+        self.trip_vehicle.final_mileage = 2000
+        self.trip_vehicle.save()
+        html = self.render_report()
+        self.assertIn('<td>Odômetro final</td>', html)
+        self.assertNotIn('último abastecimento', html)
+
+    def test_legacy_without_final_keeps_refueling_label(self):
+        Refueling.objects.create(
+            trip=self.trip,
+            city='Campinas',
+            state='SP',
+            liters=Decimal('30.00'),
+            amount_spent=Decimal('150.00'),
+            total_mileage=1500,
+            datetime=timezone.now(),
+        )
+        html = self.render_report()
+        self.assertIn('Odômetro final (último abastecimento)', html)
+
+    def test_no_refueling_and_no_final_omits_row(self):
+        html = self.render_report()
+        self.assertNotIn('Odômetro final', html)

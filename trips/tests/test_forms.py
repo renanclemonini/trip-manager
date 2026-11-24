@@ -1,6 +1,14 @@
-from django.test import TestCase
+from datetime import datetime, timedelta
+from decimal import Decimal
 
-from trips.forms import TripForm
+from django.test import TestCase
+from django.utils import timezone
+from django.utils.timezone import make_aware
+
+from accounts.models import User
+from trips.forms import FinishTripForm, TripForm
+from trips.models import Trip, TripType
+from vehicles.models import Refueling, TripVehicle, Vehicle, VehicleType
 
 
 class TripFormFieldsTests(TestCase):
@@ -91,3 +99,87 @@ class TripFormValidationTests(TestCase):
             data=self._data(trip_type='bus', end_datetime='2026-10-10T10:00')
         )
         self.assertTrue(form.is_valid(), form.errors)
+
+
+class FinishTripFormTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            email='finish-form@example.com', password='strong-pass-123'
+        )
+        self.trip = Trip.objects.create(
+            created_by=self.user,
+            origin_city='São Paulo',
+            origin_state='SP',
+            destination_city='Curitiba',
+            destination_state='PR',
+            trip_type=TripType.CAR,
+            start_datetime=timezone.now() - timedelta(days=1),
+        )
+        vehicle = Vehicle.objects.create(
+            vehicle_type=VehicleType.CAR, brand='Fiat', model='Argo'
+        )
+        self.trip_vehicle = TripVehicle.objects.create(
+            trip=self.trip, vehicle=vehicle, initial_mileage=1000
+        )
+
+    def _data(self, **overrides):
+        data = {
+            'end_datetime': '2026-11-24T18:00',
+            'final_mileage': '2000',
+        }
+        data.update(overrides)
+        return data
+
+    def test_form_exposes_expected_fields_in_order(self):
+        form = FinishTripForm(trip=self.trip)
+        self.assertEqual(
+            list(form.fields), ['end_datetime', 'final_mileage']
+        )
+        attrs = form.fields['final_mileage'].widget.attrs
+        self.assertEqual(attrs['data-mask'], 'integer')
+
+    def test_final_mileage_is_required(self):
+        form = FinishTripForm(
+            data=self._data(final_mileage=''), trip=self.trip
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn('final_mileage', form.errors)
+
+    def test_final_mileage_equal_to_current_is_valid(self):
+        Refueling.objects.create(
+            trip=self.trip,
+            city='Campinas',
+            state='SP',
+            liters=Decimal('30.00'),
+            amount_spent=Decimal('150.00'),
+            total_mileage=2000,
+            datetime=make_aware(datetime(2026, 11, 20, 8, 0)),
+        )
+        form = FinishTripForm(data=self._data(), trip=self.trip)
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_final_mileage_below_current_is_invalid(self):
+        Refueling.objects.create(
+            trip=self.trip,
+            city='Campinas',
+            state='SP',
+            liters=Decimal('30.00'),
+            amount_spent=Decimal('150.00'),
+            total_mileage=2000,
+            datetime=make_aware(datetime(2026, 11, 20, 8, 0)),
+        )
+        form = FinishTripForm(
+            data=self._data(final_mileage='1999'), trip=self.trip
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn('final_mileage', form.errors)
+        self.assertIn(
+            'não pode ser menor', form.errors['final_mileage'][0]
+        )
+
+    def test_final_mileage_below_initial_without_refueling_is_invalid(self):
+        form = FinishTripForm(
+            data=self._data(final_mileage='999'), trip=self.trip
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn('final_mileage', form.errors)

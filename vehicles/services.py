@@ -222,8 +222,10 @@ def get_transport_details(trip):
             'initial_mileage': trip_vehicle.initial_mileage,
         }
         last_refueling = trip_vehicle.last_refueling
-        if last_refueling:
-            details['final_mileage'] = last_refueling.total_mileage
+        has_final = trip_vehicle.final_mileage is not None
+        if has_final or last_refueling:
+            details['final_mileage'] = trip_vehicle.effective_mileage
+            details['has_final_odometer'] = has_final
         return details
     if trip.trip_type == TripType.BUS:
         bus_trip = getattr(trip, 'bustrip', None)
@@ -259,7 +261,12 @@ def get_transport_total(trip):
 
 
 def get_refueling_aggregates(trip):
-    """Trip level consumption (RF11): distance, liters and weighted averages."""
+    """Trip level consumption (RF11): distance, liters and weighted averages.
+
+    RF33: total distance uses the highest known odometer (final mileage when
+    set). Averages keep the full-tank method — distance up to the last
+    refueling only, since kilometers after it have no matching liters.
+    """
     refuelings = Refueling.objects.filter(trip=trip)
     totals = refuelings.aggregate(
         total_amount=Sum('amount_spent'), total_liters=Sum('liters')
@@ -267,8 +274,15 @@ def get_refueling_aggregates(trip):
     trip_vehicle = getattr(trip, 'tripvehicle', None)
     last_refueling = trip_vehicle.last_refueling if trip_vehicle else None
     total_distance = None
-    if last_refueling:
+    if trip_vehicle and (
+        trip_vehicle.final_mileage is not None or last_refueling
+    ):
         total_distance = (
+            trip_vehicle.effective_mileage - trip_vehicle.initial_mileage
+        )
+    consumption_distance = None
+    if last_refueling:
+        consumption_distance = (
             last_refueling.total_mileage - trip_vehicle.initial_mileage
         )
     total_liters = totals['total_liters']
@@ -278,13 +292,13 @@ def get_refueling_aggregates(trip):
         'total_liters': total_liters,
         'total_amount': total_amount,
         'average_km_per_liter': (
-            round(total_distance / total_liters, 2)
-            if total_distance and total_liters
+            round(consumption_distance / total_liters, 2)
+            if consumption_distance and total_liters
             else None
         ),
         'average_cost_per_km': (
-            round(total_amount / total_distance, 2)
-            if total_distance and total_amount
+            round(total_amount / consumption_distance, 2)
+            if consumption_distance and total_amount
             else None
         ),
     }

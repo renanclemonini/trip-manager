@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load humanize %}
 {% load static %}
 
 {% block title %}Finalizar viagem — Gerenciador de Viagem{% endblock %}
@@ -25,6 +26,14 @@
                     <label for="{{ form.end_datetime.id_for_label }}" class="form-label">{{ form.end_datetime.label }}</label>
                     {{ form.end_datetime }}
                     {% for error in form.end_datetime.errors %}
+                        <div class="text-danger fs-12 mt-1">{{ error }}</div>
+                    {% endfor %}
+                </div>
+                <div class="col-md-4">
+                    <label for="{{ form.final_mileage.id_for_label }}" class="form-label">{{ form.final_mileage.label }}</label>
+                    {{ form.final_mileage }}
+                    <div class="text-muted fs-12 mt-1">Odômetro atual: {{ trip.tripvehicle.current_mileage|intcomma }} km</div>
+                    {% for error in form.final_mileage.errors %}
                         <div class="text-danger fs-12 mt-1">{{ error }}</div>
                     {% endfor %}
                 </div>

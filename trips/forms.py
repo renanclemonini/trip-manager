@@ -80,6 +80,17 @@ class FinishTripForm(forms.Form):
     end_datetime = forms.DateTimeField(
         label='Data e hora de fim', widget=DATETIME_WIDGET
     )
+    final_mileage = forms.IntegerField(
+        label='Odômetro final',
+        min_value=0,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'inputmode': 'numeric',
+            'autocomplete': 'off',
+            'data-mask': 'integer',
+            'placeholder': '0',
+        }),
+    )
 
     def __init__(self, *args, trip=None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -94,3 +105,16 @@ class FinishTripForm(forms.Form):
                 'de início.'
             )
         return end_datetime
+
+    def clean_final_mileage(self):
+        final_mileage = self.cleaned_data['final_mileage']
+        trip_vehicle = getattr(self.trip, 'tripvehicle', None)
+        if trip_vehicle is None:
+            return final_mileage
+        current_mileage = trip_vehicle.current_mileage
+        if final_mileage < current_mileage:
+            raise forms.ValidationError(
+                f'O odômetro final não pode ser menor que o odômetro '
+                f'atual ({current_mileage} km).'
+            )
+        return final_mileage

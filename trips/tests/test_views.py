@@ -42,6 +42,18 @@ def create_refueling(trip, total_mileage):
     )
 
 
+def create_trip_vehicle(trip, initial_mileage=1000, final_mileage=None):
+    vehicle = Vehicle.objects.create(
+        vehicle_type=VehicleType.CAR, brand='Fiat', model='Argo'
+    )
+    return TripVehicle.objects.create(
+        trip=trip,
+        vehicle=vehicle,
+        initial_mileage=initial_mileage,
+        final_mileage=final_mileage,
+    )
+
+
 class TripListAccessTests(TestCase):
     def setUp(self):
         self.user = get_user_model().objects.create_user(
@@ -457,6 +469,7 @@ class FinishTripViewTests(TestCase):
             email='finish-other@example.com', password='strong-pass-123'
         )
         self.trip = create_trip(self.owner)
+        self.trip_vehicle = create_trip_vehicle(self.trip)
         self.client.force_login(self.owner)
 
     @patch('django.utils.timezone.now')
@@ -471,10 +484,20 @@ class FinishTripViewTests(TestCase):
         self.assertTemplateUsed(response, 'trips/trip_finish.html')
         self.assertContains(response, 'value="2026-01-01T12:00"')
 
+    def test_get_shows_current_mileage_as_reference(self):
+        create_refueling(self.trip, 1800)
+        response = self.client.get(
+            reverse('trip_finish', args=[self.trip.pk])
+        )
+        self.assertContains(response, 'Odômetro atual: 1.800 km')
+
     def test_post_valid_sets_end_datetime_and_redirects_to_detail(self):
         response = self.client.post(
             reverse('trip_finish', args=[self.trip.pk]),
-            {'end_datetime': local_input(timezone.now())},
+            {
+                'end_datetime': local_input(timezone.now()),
+                'final_mileage': '1500',
+            },
         )
         self.trip.refresh_from_db()
         self.assertAlmostEqual(
@@ -482,18 +505,65 @@ class FinishTripViewTests(TestCase):
             timezone.now().timestamp(),
             delta=120,
         )
+        self.trip_vehicle.refresh_from_db()
+        self.assertEqual(self.trip_vehicle.final_mileage, 1500)
         self.assertRedirects(
             response, reverse('trip_detail', args=[self.trip.pk])
         )
 
+    def test_post_final_mileage_below_current_shows_error(self):
+        create_refueling(self.trip, 1800)
+        response = self.client.post(
+            reverse('trip_finish', args=[self.trip.pk]),
+            {
+                'end_datetime': local_input(timezone.now()),
+                'final_mileage': '1799',
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'não pode ser menor')
+        self.trip.refresh_from_db()
+        self.assertIsNone(self.trip.end_datetime)
+
     def test_post_end_datetime_before_start_is_invalid(self):
         response = self.client.post(
             reverse('trip_finish', args=[self.trip.pk]),
-            {'end_datetime': '2020-01-01T10:00'},
+            {
+                'end_datetime': '2020-01-01T10:00',
+                'final_mileage': '1500',
+            },
         )
         self.assertEqual(response.status_code, 200)
         self.trip.refresh_from_db()
         self.assertIsNone(self.trip.end_datetime)
+
+    def test_get_without_trip_vehicle_redirects_with_message(self):
+        trip = create_trip(self.owner)
+        response = self.client.get(
+            reverse('trip_finish', args=[trip.pk]), follow=True
+        )
+        self.assertRedirects(
+            response, reverse('trip_detail', args=[trip.pk])
+        )
+        self.assertContains(
+            response,
+            'Cadastre o veículo da viagem antes de finalizá-la.',
+        )
+
+    def test_post_without_trip_vehicle_redirects_and_keeps_unfinished(self):
+        trip = create_trip(self.owner)
+        response = self.client.post(
+            reverse('trip_finish', args=[trip.pk]),
+            {
+                'end_datetime': local_input(timezone.now()),
+                'final_mileage': '1500',
+            },
+        )
+        self.assertRedirects(
+            response, reverse('trip_detail', args=[trip.pk])
+        )
+        trip.refresh_from_db()
+        self.assertIsNone(trip.end_datetime)
 
     def test_get_after_finished_returns_404(self):
         self.trip.end_datetime = timezone.now()
@@ -509,7 +579,10 @@ class FinishTripViewTests(TestCase):
         self.trip.save()
         response = self.client.post(
             reverse('trip_finish', args=[self.trip.pk]),
-            {'end_datetime': local_input(timezone.now() + timedelta(days=1))},
+            {
+                'end_datetime': local_input(timezone.now() + timedelta(days=1)),
+                'final_mileage': '2000',
+            },
         )
         self.assertEqual(response.status_code, 404)
         self.trip.refresh_from_db()
@@ -526,7 +599,10 @@ class FinishTripViewTests(TestCase):
         self.client.force_login(self.other)
         response = self.client.post(
             reverse('trip_finish', args=[self.trip.pk]),
-            {'end_datetime': local_input(timezone.now())},
+            {
+                'end_datetime': local_input(timezone.now()),
+                'final_mileage': '1500',
+            },
         )
         self.assertRedirects(
             response, reverse('trip_detail', args=[self.trip.pk])
@@ -579,6 +655,23 @@ class TripDetailDashboardTests(TestCase):
             reverse('trip_detail', args=[self.trip.pk])
         )
         self.assertContains(response, 'd-none d-lg-block')
+
+    def test_distance_label_without_final_mileage(self):
+        create_trip_vehicle(self.trip)
+        response = self.client.get(
+            reverse('trip_detail', args=[self.trip.pk])
+        )
+        self.assertContains(response, 'Distância total')
+        self.assertNotContains(response, 'odômetro final')
+
+    def test_distance_label_with_final_mileage(self):
+        create_trip_vehicle(self.trip, final_mileage=2000)
+        response = self.client.get(
+            reverse('trip_detail', args=[self.trip.pk])
+        )
+        self.assertContains(
+            response, 'Distância total (odômetro final)'
+        )
 
 
 class BaseTemplateTests(TestCase):

@@ -1,6 +1,7 @@
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
+from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.utils import timezone
 from django.utils.timezone import make_aware
@@ -178,36 +179,71 @@ class FinishTripServiceTests(TestCase):
         self.user = create_user('finish-service@example.com')
         self.trip = create_trip(self.user)
 
-    def test_finish_sets_end_datetime(self):
+    def test_finish_sets_end_datetime_and_final_mileage(self):
         end_datetime = timezone.now()
+        trip_updated_at = self.trip.updated_at
         result = services.finish_trip(
-            trip=self.trip, end_datetime=end_datetime
+            trip=self.trip,
+            end_datetime=end_datetime,
+            final_mileage=2100,
         )
         self.assertTrue(result)
         self.trip.refresh_from_db()
         self.assertEqual(self.trip.end_datetime, end_datetime)
+        self.assertGreater(self.trip.updated_at, trip_updated_at)
+        trip_vehicle = self.trip.tripvehicle
+        trip_vehicle.refresh_from_db()
+        self.assertEqual(trip_vehicle.final_mileage, 2100)
 
     def test_finish_is_rejected_when_already_finished(self):
         finished_at = timezone.now()
         self.trip.end_datetime = finished_at
         self.trip.save()
+        trip_vehicle = self.trip.tripvehicle
+        trip_vehicle.final_mileage = 1800
+        trip_vehicle.save()
         result = services.finish_trip(
-            trip=self.trip, end_datetime=timezone.now() + timedelta(days=1)
+            trip=self.trip,
+            end_datetime=timezone.now() + timedelta(days=1),
+            final_mileage=2100,
         )
         self.assertFalse(result)
         self.trip.refresh_from_db()
         self.assertEqual(self.trip.end_datetime, finished_at)
+        trip_vehicle.refresh_from_db()
+        self.assertEqual(trip_vehicle.final_mileage, 1800)
 
     def test_finish_is_rejected_for_non_car_trip(self):
         bus_trip = create_trip(
             create_user('finish-service-bus@example.com'), TripType.BUS
         )
         result = services.finish_trip(
-            trip=bus_trip, end_datetime=timezone.now()
+            trip=bus_trip,
+            end_datetime=timezone.now(),
+            final_mileage=2100,
         )
         self.assertFalse(result)
         bus_trip.refresh_from_db()
         self.assertIsNone(bus_trip.end_datetime)
+
+    def test_finish_without_trip_vehicle_rolls_back(self):
+        trip = Trip.objects.create(
+            created_by=self.user,
+            origin_city='São Paulo',
+            origin_state='SP',
+            destination_city='Curitiba',
+            destination_state='PR',
+            trip_type=TripType.CAR,
+            start_datetime=timezone.now() - timedelta(days=1),
+        )
+        with self.assertRaises(ValidationError):
+            services.finish_trip(
+                trip=trip,
+                end_datetime=timezone.now(),
+                final_mileage=2100,
+            )
+        trip.refresh_from_db()
+        self.assertIsNone(trip.end_datetime)
 
 
 class TripDashboardCarTests(TestCase):

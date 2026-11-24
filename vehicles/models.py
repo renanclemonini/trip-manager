@@ -32,6 +32,9 @@ class TripVehicle(TimestampedModel):
         Vehicle, on_delete=models.PROTECT, verbose_name="Veículo"
     )
     initial_mileage = models.PositiveIntegerField("Odômetro inicial")
+    final_mileage = models.PositiveIntegerField(
+        "Odômetro final", null=True, blank=True
+    )
 
     class Meta:
         verbose_name = "Veículo da viagem"
@@ -43,9 +46,19 @@ class TripVehicle(TimestampedModel):
         return self.trip.refuelings.order_by("-total_mileage").first()
 
     @property
-    def current_mileage(self):
+    def effective_mileage(self):
+        """Highest known odometer: initial, last refueling and final (RF33)."""
+        known = [self.initial_mileage]
+        if self.final_mileage is not None:
+            known.append(self.final_mileage)
         last_refueling = self.last_refueling
-        return last_refueling.total_mileage if last_refueling else self.initial_mileage
+        if last_refueling:
+            known.append(last_refueling.total_mileage)
+        return max(known)
+
+    @property
+    def current_mileage(self):
+        return self.effective_mileage
 
     def __str__(self):
         current_mileage = number_format(self.current_mileage, force_grouping=True)

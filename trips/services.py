@@ -1,12 +1,14 @@
 from decimal import Decimal
 
+from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.urls import reverse
 from django.utils import timezone
 
 from expenses import services as expenses_services
 from trips.models import Trip, TripType
 from vehicles import services as vehicles_services
-from vehicles.models import Refueling
+from vehicles.models import Refueling, TripVehicle
 
 POST_CREATE_URL_NAMES = {
     TripType.CAR: 'vehicle_new',
@@ -43,22 +45,36 @@ def get_trip_post_create_path(trip):
     return reverse(url_name, kwargs={'trip_id': trip.pk})
 
 
-def finish_trip(*, trip, end_datetime):
-    """Finish a car trip, only once (RF27).
+def finish_trip(*, trip, end_datetime, final_mileage):
+    """Finish a car trip, only once (RF27), recording the final odometer.
 
-    The conditional update is atomic: it guards against a concurrent second
-    finish attempt that could otherwise overwrite an already set end_datetime.
+    RF33: the trip's end datetime and the vehicle's final mileage are stored
+    atomically across the two tables. The conditional update guards against a
+    concurrent second finish attempt that could otherwise overwrite an already
+    set end_datetime.
     """
-    updated = (
-        Trip.objects
-        .filter(
-            pk=trip.pk,
-            trip_type=TripType.CAR,
-            end_datetime__isnull=True,
+    with transaction.atomic():
+        updated = (
+            Trip.objects
+            .filter(
+                pk=trip.pk,
+                trip_type=TripType.CAR,
+                end_datetime__isnull=True,
+            )
+            .update(end_datetime=end_datetime, updated_at=timezone.now())
         )
-        .update(end_datetime=end_datetime, updated_at=timezone.now())
-    )
-    return updated == 1
+        if updated != 1:
+            return False
+        vehicles_updated = TripVehicle.objects.filter(
+            trip_id=trip.pk
+        ).update(
+            final_mileage=final_mileage, updated_at=timezone.now()
+        )
+        if vehicles_updated != 1:
+            raise ValidationError(
+                'Cadastre o veículo da viagem antes de finalizá-la.'
+            )
+        return True
 
 
 def _get_category_total(trip, key):

@@ -124,6 +124,39 @@ class TripVehicleCurrentMileageTests(TestCase):
         self.assertEqual(self.trip_vehicle.current_mileage, 1500)
 
 
+class TripVehicleFinalMileageTests(TestCase):
+    def setUp(self):
+        self.trip = create_trip(create_user())
+        vehicle = Vehicle.objects.create(
+            vehicle_type=VehicleType.CAR, brand='Fiat', model='Argo'
+        )
+        self.trip_vehicle = TripVehicle.objects.create(
+            trip=self.trip, vehicle=vehicle, initial_mileage=1000
+        )
+
+    def test_final_mileage_wins_over_refuelings(self):
+        create_refueling(self.trip, 1500)
+        create_refueling(self.trip, 1800)
+        self.trip_vehicle.final_mileage = 2000
+        self.assertEqual(self.trip_vehicle.current_mileage, 2000)
+        self.assertEqual(self.trip_vehicle.effective_mileage, 2000)
+
+    def test_refueling_synced_after_finish_with_higher_mileage_wins(self):
+        self.trip_vehicle.final_mileage = 2000
+        create_refueling(self.trip, 2200)
+        self.assertEqual(self.trip_vehicle.current_mileage, 2200)
+        self.assertEqual(self.trip_vehicle.effective_mileage, 2200)
+
+    def test_without_final_mileage_keeps_legacy_behavior(self):
+        create_refueling(self.trip, 1800)
+        self.assertEqual(self.trip_vehicle.current_mileage, 1800)
+        self.assertEqual(self.trip_vehicle.effective_mileage, 1800)
+
+    def test_without_final_mileage_nor_refuelings_returns_initial(self):
+        self.assertEqual(self.trip_vehicle.current_mileage, 1000)
+        self.assertEqual(self.trip_vehicle.effective_mileage, 1000)
+
+
 class BusTripFieldsTests(TestCase):
     def test_bus_trip_persists_decimal_amount(self):
         user = create_user('bustrip@example.com')

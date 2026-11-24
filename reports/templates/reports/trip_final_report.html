@@ -47,7 +47,10 @@
                     <tr><td>Veículo</td><td>{{ transport.vehicle }}</td></tr>
                     <tr><td>Odômetro inicial</td><td>{{ transport.initial_mileage|intcomma }} km</td></tr>
                     {% if transport.final_mileage %}
-                        <tr><td>Odômetro final (último abastecimento)</td><td>{{ transport.final_mileage|intcomma }} km</td></tr>
+                        <tr>
+                            <td>{% if transport.has_final_odometer %}Odômetro final{% else %}Odômetro final (último abastecimento){% endif %}</td>
+                            <td>{{ transport.final_mileage|intcomma }} km</td>
+                        </tr>
                     {% endif %}
                 {% elif trip.trip_type == 'bus' %}
                     <tr><td>Empresa</td><td>{{ transport.company }}</td></tr>

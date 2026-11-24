@@ -190,6 +190,38 @@ class TransportDetailsTests(TestCase):
         self.assertEqual(details['initial_mileage'], 1000)
         self.assertNotIn('final_mileage', details)
 
+    def test_car_trip_with_final_mileage_uses_it(self):
+        trip = create_car_trip(create_user('details-final@example.com'))
+        trip.tripvehicle.final_mileage = 2000
+        trip.tripvehicle.save()
+        details = vehicles_services.get_transport_details(trip)
+        self.assertEqual(details['final_mileage'], 2000)
+        self.assertTrue(details['has_final_odometer'])
+
+    def test_car_trip_final_mileage_without_refueling(self):
+        trip = create_car_trip_without_refueling(
+            create_user('details-final-no-refuel@example.com')
+        )
+        trip.tripvehicle.final_mileage = 2000
+        trip.tripvehicle.save()
+        details = vehicles_services.get_transport_details(trip)
+        self.assertEqual(details['final_mileage'], 2000)
+        self.assertTrue(details['has_final_odometer'])
+
+    def test_late_refueling_higher_than_final_uses_effective_mileage(self):
+        trip = create_car_trip(create_user('details-late@example.com'))
+        trip.tripvehicle.final_mileage = 1400
+        trip.tripvehicle.save()
+        details = vehicles_services.get_transport_details(trip)
+        self.assertEqual(details['final_mileage'], 1500)
+        self.assertTrue(details['has_final_odometer'])
+
+    def test_legacy_car_trip_without_final_keeps_refueling_value(self):
+        trip = create_car_trip(create_user('details-legacy@example.com'))
+        details = vehicles_services.get_transport_details(trip)
+        self.assertEqual(details['final_mileage'], 1500)
+        self.assertFalse(details['has_final_odometer'])
+
     def test_car_trip_without_vehicle_returns_none(self):
         user = create_user('details-no-vehicle@example.com')
         trip = Trip.objects.create(

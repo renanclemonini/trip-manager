@@ -50,7 +50,12 @@ class TripDetailView(TripContextMixin, DetailView):
 
 
 class FinishTripView(ExpectedTripTypeMixin, FormView):
-    """Narrow RF27 exception: set end_datetime for an unfinished car trip."""
+    """Narrow RF27 exception: set end_datetime for an unfinished car trip.
+
+    RF33: also records the final odometer on the trip vehicle; a car trip
+    without a TripVehicle cannot be finished (no known odometer to check the
+    minimum against).
+    """
 
     form_class = FinishTripForm
     template_name = 'trips/trip_finish.html'
@@ -62,6 +67,22 @@ class FinishTripView(ExpectedTripTypeMixin, FormView):
             raise Http404
         return trip
 
+    def _guard_trip_vehicle(self, trip):
+        if getattr(trip, 'tripvehicle', None) is None:
+            messages.error(
+                self.request,
+                'Cadastre o veículo da viagem antes de finalizá-la.',
+            )
+            return redirect('trip_detail', trip_id=trip.pk)
+        return None
+
+    def get(self, request, *args, **kwargs):
+        trip = self.get_trip()
+        guard = self._guard_trip_vehicle(trip)
+        if guard is not None:
+            return guard
+        return super().get(request, *args, **kwargs)
+
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs['trip'] = self.get_trip()
@@ -69,8 +90,13 @@ class FinishTripView(ExpectedTripTypeMixin, FormView):
 
     def form_valid(self, form):
         trip = self.get_trip()
+        guard = self._guard_trip_vehicle(trip)
+        if guard is not None:
+            return guard
         finished = services.finish_trip(
-            trip=trip, end_datetime=form.cleaned_data['end_datetime']
+            trip=trip,
+            end_datetime=form.cleaned_data['end_datetime'],
+            final_mileage=form.cleaned_data['final_mileage'],
         )
         if not finished:
             raise Http404

@@ -82,6 +82,52 @@ class RefuelingAggregatesTests(TestCase):
         self.assertIsNone(aggregates['total_distance'])
         self.assertIsNone(aggregates['average_km_per_liter'])
 
+    def test_final_mileage_sets_total_distance_but_keeps_tank_averages(self):
+        trip = create_trip(create_user(), initial_mileage=1000)
+        create_refueling(trip, 1500, '30.00', '150.00')
+        create_refueling(trip, 2000, '40.00', '200.00')
+        trip.tripvehicle.final_mileage = 2200
+        trip.tripvehicle.save()
+        aggregates = services.get_refueling_aggregates(trip)
+        self.assertEqual(aggregates['total_distance'], 1200)
+        self.assertEqual(
+            aggregates['average_km_per_liter'], Decimal('14.29')
+        )
+        self.assertEqual(
+            aggregates['average_cost_per_km'], Decimal('0.35')
+        )
+
+    def test_final_mileage_without_refuelings(self):
+        trip = create_trip(create_user(), initial_mileage=1000)
+        trip.tripvehicle.final_mileage = 2200
+        trip.tripvehicle.save()
+        aggregates = services.get_refueling_aggregates(trip)
+        self.assertEqual(aggregates['total_distance'], 1200)
+        self.assertIsNone(aggregates['total_liters'])
+        self.assertIsNone(aggregates['total_amount'])
+        self.assertIsNone(aggregates['average_km_per_liter'])
+        self.assertIsNone(aggregates['average_cost_per_km'])
+
+    def test_late_synced_refueling_higher_than_final_wins(self):
+        trip = create_trip(create_user(), initial_mileage=1000)
+        create_refueling(trip, 1500, '30.00', '150.00')
+        create_refueling(trip, 2400, '40.00', '200.00')
+        trip.tripvehicle.final_mileage = 2200
+        trip.tripvehicle.save()
+        aggregates = services.get_refueling_aggregates(trip)
+        self.assertEqual(aggregates['total_distance'], 1400)
+        self.assertEqual(
+            aggregates['average_km_per_liter'], Decimal('20.00')
+        )
+
+    def test_final_equal_to_initial_gives_zero_distance(self):
+        trip = create_trip(create_user(), initial_mileage=1000)
+        trip.tripvehicle.final_mileage = 1000
+        trip.tripvehicle.save()
+        aggregates = services.get_refueling_aggregates(trip)
+        self.assertEqual(aggregates['total_distance'], 0)
+        self.assertIsNone(aggregates['average_km_per_liter'])
+
 
 class RefuelingTotalTests(TestCase):
     def test_empty_trip_returns_zero(self):
