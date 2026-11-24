@@ -316,6 +316,42 @@ class TripDetailTransportSummaryTests(TestCase):
             reverse('trip_detail', args=[self.trip.pk])
         )
         self.assertContains(response, 'Odômetro atual: 1.800 km')
+        self.assertNotContains(response, 'Odômetro final')
+
+    def test_completed_with_final_mileage_shows_final_odometer_label(self):
+        self.trip.end_datetime = timezone.now()
+        self.trip.save()
+        create_trip_vehicle(self.trip, final_mileage=2000)
+        create_refueling(self.trip, 1800)
+        response = self.client.get(
+            reverse('trip_detail', args=[self.trip.pk])
+        )
+        self.assertContains(response, 'Odômetro final: 2.000 km')
+        self.assertNotContains(response, 'Odômetro atual')
+
+    def test_completed_legacy_shows_last_refueling_odometer_label(self):
+        self.trip.end_datetime = timezone.now()
+        self.trip.save()
+        create_trip_vehicle(self.trip)
+        create_refueling(self.trip, 1800)
+        response = self.client.get(
+            reverse('trip_detail', args=[self.trip.pk])
+        )
+        self.assertContains(
+            response, 'Odômetro final (último abastecimento): 1.800 km'
+        )
+        self.assertNotContains(response, 'Odômetro atual')
+
+    def test_completed_legacy_without_refuelings_omits_current_odometer(self):
+        self.trip.end_datetime = timezone.now()
+        self.trip.save()
+        create_trip_vehicle(self.trip)
+        response = self.client.get(
+            reverse('trip_detail', args=[self.trip.pk])
+        )
+        self.assertContains(response, 'Odômetro inicial: 1.000 km')
+        self.assertNotContains(response, 'Odômetro final')
+        self.assertNotContains(response, 'Odômetro atual')
 
     def test_current_mileage_defaults_to_initial_without_refuelings(self):
         vehicle = Vehicle.objects.create(

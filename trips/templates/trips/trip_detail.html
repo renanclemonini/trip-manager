@@ -20,7 +20,16 @@
             {% if trip.tripvehicle %}
                 <h6 class="fw-semibold mb-3">Veículo</h6>
                 <p class="mb-1"><strong>{{ trip.tripvehicle.vehicle }}</strong></p>
-                <p class="text-muted mb-3">Odômetro inicial: {{ trip.tripvehicle.initial_mileage|intcomma }} km<br>Odômetro atual: {{ trip.tripvehicle.current_mileage|intcomma }} km</p>
+                <p class="text-muted mb-1">Odômetro inicial: {{ trip.tripvehicle.initial_mileage|intcomma }} km</p>
+                {% if trip.is_completed %}
+                    {% if trip.tripvehicle.final_mileage is not None %}
+                        <p class="text-muted mb-3">Odômetro final: {{ trip.tripvehicle.current_mileage|intcomma }} km</p>
+                    {% elif trip.tripvehicle.last_refueling %}
+                        <p class="text-muted mb-3">Odômetro final (último abastecimento): {{ trip.tripvehicle.current_mileage|intcomma }} km</p>
+                    {% endif %}
+                {% else %}
+                    <p class="text-muted mb-3">Odômetro atual: {{ trip.tripvehicle.current_mileage|intcomma }} km</p>
+                {% endif %}
                 <a href="{% url 'vehicle_edit' trip.pk %}" class="btn btn-light btn-sm">Editar veículo</a>
             {% else %}
                 <h6 class="fw-semibold mb-2">Veículo ainda não cadastrado</h6>
