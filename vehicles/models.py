@@ -13,14 +13,27 @@ class VehicleType(models.TextChoices):
     BUS = "bus", "Ônibus"
 
 
+def normalize_plate(value):
+    """Uppercase plate without hyphen/spaces; empty input becomes None."""
+    if value is None:
+        return None
+    normalized = value.upper().replace("-", "").replace(" ", "")
+    return normalized or None
+
+
 class Vehicle(TimestampedModel):
     vehicle_type = models.CharField("Tipo", max_length=10, choices=VehicleType.choices)
     brand = models.CharField("Marca", max_length=80)
     model = models.CharField("Modelo", max_length=80)
+    plate = models.CharField("Placa", max_length=7, null=True, blank=True)
 
     class Meta:
         verbose_name = "Veículo"
         verbose_name_plural = "Veículos"
+
+    def save(self, *args, **kwargs):
+        self.plate = normalize_plate(self.plate)
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.brand} {self.model}"

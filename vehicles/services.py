@@ -36,6 +36,7 @@ def create_car_transport(trip, data):
             vehicle_type=VehicleType.CAR,
             brand=data['brand'],
             model=data['model'],
+            plate=data.get('plate'),
         )
         return TripVehicle.objects.create(
             trip=trip,
@@ -51,6 +52,7 @@ def update_car_transport(trip, data):
         vehicle = trip_vehicle.vehicle
         vehicle.brand = data['brand']
         vehicle.model = data['model']
+        vehicle.plate = data.get('plate')
         vehicle.save()
         trip_vehicle.initial_mileage = data['initial_mileage']
         trip_vehicle.save()

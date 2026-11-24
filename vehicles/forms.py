@@ -1,10 +1,12 @@
 from decimal import Decimal
+import re
 
 from django import forms
 from django.core.exceptions import ValidationError
 
 from common.choices import State
 from vehicles import services
+from vehicles.models import normalize_plate
 
 DATE_WIDGET = forms.DateInput(
     attrs={'class': 'form-control', 'type': 'date'}, format='%Y-%m-%d'
@@ -17,6 +19,8 @@ DATETIME_WIDGET = forms.DateTimeInput(
     },
     format='%Y-%m-%dT%H:%M',
 )
+
+PLATE_PATTERN = re.compile(r'^[A-Z]{3}[0-9]{4}$|^[A-Z]{3}[0-9][A-Z][0-9]{2}$')
 
 
 class VehicleTripForm(forms.Form):
@@ -41,6 +45,28 @@ class VehicleTripForm(forms.Form):
             'placeholder': '0',
         }),
     )
+    plate = forms.CharField(
+        label='Placa',
+        max_length=8,
+        required=False,
+        help_text='Necessária para importar o extrato de pedágio.',
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'autocomplete': 'off',
+            'placeholder': 'ABC1D23',
+        }),
+    )
+
+    def clean_plate(self):
+        plate = normalize_plate(self.cleaned_data.get('plate'))
+        if plate is None:
+            return None
+        if not PLATE_PATTERN.match(plate):
+            raise forms.ValidationError(
+                'Informe uma placa válida '
+                '(formato antigo ABC1234 ou Mercosul ABC1D23).'
+            )
+        return plate
 
 
 class BusTripForm(forms.Form):

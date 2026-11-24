@@ -66,6 +66,7 @@ class VehicleUpdateView(TransportFormViewMixin):
             'brand': trip_vehicle.vehicle.brand,
             'model': trip_vehicle.vehicle.model,
             'initial_mileage': trip_vehicle.initial_mileage,
+            'plate': trip_vehicle.vehicle.plate,
         }
 
     def save_transport(self, form):
