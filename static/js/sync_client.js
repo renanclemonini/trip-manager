@@ -11,6 +11,7 @@
         lodging: 'Hospedagem',
         meal: 'Alimentação',
         sightseeing: 'Passeio',
+        toll: 'Pedágio',
     };
 
     function nextDelay(attempts) {
@@ -91,6 +92,9 @@
         }
         if (entry.type === 'sightseeing' && payload.description) {
             parts.push(payload.description);
+        }
+        if (entry.type === 'toll' && payload.location) {
+            parts.push(payload.location);
         }
         if (payload.amount_spent) {
             parts.push('R$ ' + payload.amount_spent);

@@ -5,6 +5,7 @@ from sync.views import (
     MealSyncView,
     RefuelingSyncView,
     SightseeingSyncView,
+    TollSyncView,
 )
 
 urlpatterns = [
@@ -16,4 +17,5 @@ urlpatterns = [
         SightseeingSyncView.as_view(),
         name='sync_sightseeing',
     ),
+    path('sync/tolls/', TollSyncView.as_view(), name='sync_toll'),
 ]

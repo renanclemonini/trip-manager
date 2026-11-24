@@ -10,6 +10,7 @@ from django.urls import reverse
 from django.utils.timezone import make_aware
 
 from expenses.models import Lodging, Meal, Sightseeing
+from tolls.models import Toll
 from trips.models import Trip, TripType
 from vehicles.models import Refueling, TripVehicle, Vehicle, VehicleType
 
@@ -101,6 +102,18 @@ def sightseeing_payload(trip, **overrides):
         'trip': trip.pk,
         'amount_spent': '80.00',
         'description': 'Museu',
+    }
+    payload.update(overrides)
+    return payload
+
+
+def toll_payload(trip, **overrides):
+    payload = {
+        'id': str(uuid4()),
+        'trip': trip.pk,
+        'location': 'Praça ABC',
+        'amount_spent': '25.00',
+        'datetime': '2026-10-02T08:00',
     }
     payload.update(overrides)
     return payload
@@ -241,6 +254,90 @@ class RefuelingSyncValidationTests(TestCase):
         )
         self.assertEqual(response.status_code, 201)
         self.assertTrue(Refueling.objects.filter(pk=payload['id']).exists())
+
+
+class TollSyncTests(TestCase):
+    def setUp(self):
+        self.user = create_user('toll-sync@example.com')
+        self.trip = create_trip(self.user, with_vehicle=False)
+        self.client.force_login(self.user)
+
+    def test_creates_toll_on_car_trip_without_trip_vehicle(self):
+        payload = toll_payload(self.trip)
+        response = post_json(self.client, reverse('sync_toll'), payload)
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(
+            response.json(), {'status': 'ok', 'id': payload['id']}
+        )
+        toll = Toll.objects.get(pk=payload['id'])
+        self.assertEqual(toll.trip, self.trip)
+        self.assertEqual(toll.location, 'Praça ABC')
+        self.assertEqual(str(toll.amount_spent), '25.00')
+
+    def test_resend_updates_same_record(self):
+        payload = toll_payload(self.trip)
+        first = post_json(self.client, reverse('sync_toll'), payload)
+        second = post_json(
+            self.client,
+            reverse('sync_toll'),
+            payload | {'location': 'Praça XYZ'},
+        )
+        self.assertEqual(first.status_code, 201)
+        self.assertEqual(second.status_code, 200)
+        self.assertEqual(Toll.objects.count(), 1)
+        toll = Toll.objects.get(pk=payload['id'])
+        self.assertEqual(toll.location, 'Praça XYZ')
+
+    def test_non_car_trip_returns_400(self):
+        bus_trip = create_trip(self.user, TripType.BUS, with_vehicle=False)
+        response = post_json(
+            self.client,
+            reverse('sync_toll'),
+            toll_payload(bus_trip),
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('__all__', response.json()['errors'])
+
+    def test_invalid_amount_returns_400(self):
+        response = post_json(
+            self.client,
+            reverse('sync_toll'),
+            toll_payload(self.trip, amount_spent='0.00'),
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('amount_spent', response.json()['errors'])
+
+    def test_uuid_from_another_trip_returns_400(self):
+        other_trip = create_trip(self.user, with_vehicle=False)
+        existing = Toll.objects.create(
+            trip=self.trip,
+            location='Praça ABC',
+            amount_spent=Decimal('25.00'),
+            datetime=REFUELING_DATETIME,
+        )
+        response = post_json(
+            self.client,
+            reverse('sync_toll'),
+            toll_payload(other_trip, id=str(existing.pk)),
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('id', response.json()['errors'])
+
+    def test_anonymous_gets_json_403(self):
+        self.client.logout()
+        response = post_json(
+            self.client, reverse('sync_toll'), toll_payload(self.trip)
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_invalid_uuid_returns_400(self):
+        response = post_json(
+            self.client,
+            reverse('sync_toll'),
+            toll_payload(self.trip, id='not-a-uuid'),
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('id', response.json()['errors'])
 
 
 class SyncUuidConflictTests(TestCase):

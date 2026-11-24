@@ -82,6 +82,9 @@
                 <a href="{% url 'refueling_list' trip.pk %}" class="btn btn-light btn-sm">
                     <i class="feather-droplet me-2"></i>Abastecimentos
                 </a>
+                <a href="{% url 'toll_list' trip.pk %}" class="btn btn-light btn-sm">
+                    <i class="feather-credit-card me-2"></i>Pedágios
+                </a>
             {% endif %}
             <a href="{% url 'lodging_list' trip.pk %}" class="btn btn-light btn-sm">
                 <i class="feather-home me-2"></i>Hospedagens

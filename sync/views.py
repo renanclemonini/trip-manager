@@ -9,6 +9,9 @@ from django.views import View
 from expenses import services as expenses_services
 from expenses.forms import LodgingForm, MealForm, SightseeingForm
 from expenses.models import Lodging, Meal, Sightseeing
+from tolls import services as tolls_services
+from tolls.forms import TollForm
+from tolls.models import Toll
 from trips.models import Trip
 from vehicles import services as vehicles_services
 from vehicles.forms import RefuelingForm
@@ -155,3 +158,18 @@ class SightseeingSyncView(BaseSyncView):
         except ValidationError as exc:
             return self.validation_error_response(exc)
         return self.success_response(sightseeing, created=instance is None)
+
+
+class TollSyncView(BaseSyncView):
+    def handle_sync(self, trip, record_id, payload):
+        instance = Toll.objects.filter(pk=record_id, trip=trip).first()
+        form = TollForm(data=payload, trip=trip, instance=instance)
+        if not form.is_valid():
+            return self.error_response(form.errors.get_json_data())
+        try:
+            toll = tolls_services.upsert_toll(
+                trip, record_id, form.cleaned_data
+            )
+        except ValidationError as exc:
+            return self.validation_error_response(exc)
+        return self.success_response(toll, created=instance is None)

@@ -12,6 +12,7 @@ from django.utils.timezone import make_aware
 from accounts.models import User
 from reports.services import ReportDeliveryError, email_client, telegram_client
 from reports.services import chart_builder, pdf_builder, report_data
+from tolls.models import Toll
 from trips.models import Trip, TripType
 from expenses.models import Lodging, Meal, Sightseeing
 from vehicles import services as vehicles_services
@@ -283,6 +284,18 @@ class FinalReportContextTests(TestCase):
             check_in=make_aware(datetime(2026, 10, 3, 14, 0)),
             check_out=make_aware(datetime(2026, 10, 4, 11, 0)),
         )
+        later_toll = Toll.objects.create(
+            trip=trip,
+            location='Praça B',
+            amount_spent=Decimal('40.00'),
+            datetime=make_aware(datetime(2026, 10, 3, 8, 0)),
+        )
+        earlier_toll = Toll.objects.create(
+            trip=trip,
+            location='Praça A',
+            amount_spent=Decimal('25.00'),
+            datetime=make_aware(datetime(2026, 10, 2, 9, 0)),
+        )
         context = report_data.get_final_report_context(trip)
         self.assertEqual(
             list(
@@ -292,7 +305,10 @@ class FinalReportContextTests(TestCase):
         )
         self.assertEqual(
             [category['key'] for category in context['dashboard']['categories']],
-            ['refueling', 'lodging', 'meal'],
+            ['refueling', 'lodging', 'meal', 'toll'],
+        )
+        self.assertEqual(
+            list(context['tolls']), [earlier_toll, later_toll]
         )
         self.assertEqual(context['transport']['final_mileage'], 1500)
         self.assertEqual(list(context['sightseeings']), [])

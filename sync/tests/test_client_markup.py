@@ -8,6 +8,7 @@ from django.urls import reverse
 from django.utils.timezone import make_aware
 
 from expenses.models import Lodging, Meal, Sightseeing
+from tolls.models import Toll
 from trips.models import Trip, TripType
 from vehicles.models import Refueling, TripVehicle, Vehicle, VehicleType
 
@@ -68,6 +69,13 @@ def create_record(trip, sync_form_type):
             city='Curitiba',
             state='PR',
             amount_spent=Decimal('35.00'),
+            datetime=DATETIME,
+        )
+    if sync_form_type == 'toll':
+        return Toll.objects.create(
+            trip=trip,
+            location='Praça ABC',
+            amount_spent=Decimal('25.00'),
             datetime=DATETIME,
         )
     return Sightseeing.objects.create(
@@ -139,6 +147,14 @@ class MealOfflineMarkupTests(OfflineSyncMarkupMixin, TestCase):
     edit_url_name = 'meal_edit'
     sync_url_name = 'sync_meal'
     sync_form_type = 'meal'
+
+
+class TollOfflineMarkupTests(OfflineSyncMarkupMixin, TestCase):
+    list_url_name = 'toll_list'
+    create_url_name = 'toll_create'
+    edit_url_name = 'toll_edit'
+    sync_url_name = 'sync_toll'
+    sync_form_type = 'toll'
 
 
 class SightseeingOfflineMarkupTests(OfflineSyncMarkupMixin, TestCase):

@@ -8,6 +8,7 @@ from django.utils.timezone import make_aware
 
 from accounts.models import User
 from expenses.models import Lodging, Meal, Sightseeing
+from tolls.models import Toll
 from trips import services
 from trips.forms import TripForm
 from trips.models import Trip, TripType
@@ -24,6 +25,7 @@ REFUELING_DATETIME = make_aware(datetime(2026, 10, 2, 8, 0))
 CHECK_IN = make_aware(datetime(2026, 10, 2, 14, 0))
 CHECK_OUT = make_aware(datetime(2026, 10, 5, 11, 0))
 MEAL_DATETIME = make_aware(datetime(2026, 10, 2, 12, 30))
+TOLL_DATETIME = make_aware(datetime(2026, 10, 2, 10, 0))
 
 
 class GetTripPostCreatePathTests(TestCase):
@@ -149,6 +151,15 @@ def fill_common_expenses(trip):
     )
 
 
+def fill_toll(trip):
+    Toll.objects.create(
+        trip=trip,
+        location='Praça ABC',
+        amount_spent=Decimal('25.00'),
+        datetime=TOLL_DATETIME,
+    )
+
+
 def fill_flight(trip, ticket_price=Decimal('1234.56')):
     FlightTrip.objects.create(
         trip=trip,
@@ -251,19 +262,21 @@ class TripDashboardCarTests(TestCase):
         self.trip = create_trip(create_user())
         fill_car_data(self.trip)
         fill_common_expenses(self.trip)
+        fill_toll(self.trip)
 
     def test_categories_exclude_transport(self):
         dashboard = services.get_trip_dashboard(self.trip)
         keys = [category['key'] for category in dashboard['categories']]
-        self.assertEqual(keys, ['refueling', 'lodging', 'meal'])
+        self.assertEqual(keys, ['refueling', 'lodging', 'meal', 'toll'])
         labels = [category['label'] for category in dashboard['categories']]
         self.assertEqual(
-            labels, ['Abastecimento', 'Hospedagem', 'Alimentação']
+            labels,
+            ['Abastecimento', 'Hospedagem', 'Alimentação', 'Pedágio'],
         )
 
     def test_grand_total_sums_categories(self):
         dashboard = services.get_trip_dashboard(self.trip)
-        self.assertEqual(dashboard['grand_total'], Decimal('835.00'))
+        self.assertEqual(dashboard['grand_total'], Decimal('860.00'))
 
     def test_refueling_aggregates_and_stats_are_included(self):
         dashboard = services.get_trip_dashboard(self.trip)
@@ -334,9 +347,10 @@ class TripDashboardEmptyTests(TestCase):
         totals = [
             category['total'] for category in dashboard['categories']
         ]
-        self.assertEqual(totals, [Decimal('0.00')] * 3)
+        self.assertEqual(totals, [Decimal('0.00')] * 4)
         self.assertEqual(
-            dashboard['chart_data']['categories']['series'], [0.0, 0.0, 0.0]
+            dashboard['chart_data']['categories']['series'],
+            [0.0, 0.0, 0.0, 0.0],
         )
 
 
@@ -345,14 +359,16 @@ class TripDashboardChartDataTests(TestCase):
         self.trip = create_trip(create_user('charts@example.com'))
         fill_car_data(self.trip)
         fill_common_expenses(self.trip)
+        fill_toll(self.trip)
 
     def test_category_chart_matches_categories(self):
         dashboard = services.get_trip_dashboard(self.trip)
         chart = dashboard['chart_data']['categories']
         self.assertEqual(
-            chart['labels'], ['Abastecimento', 'Hospedagem', 'Alimentação']
+            chart['labels'],
+            ['Abastecimento', 'Hospedagem', 'Alimentação', 'Pedágio'],
         )
-        self.assertEqual(chart['series'], [350.0, 450.0, 35.0])
+        self.assertEqual(chart['series'], [350.0, 450.0, 35.0, 25.0])
 
     def test_consumption_chart_lists_km_per_liter_by_odometer(self):
         dashboard = services.get_trip_dashboard(self.trip)

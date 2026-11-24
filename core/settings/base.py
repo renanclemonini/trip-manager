@@ -22,6 +22,7 @@ INSTALLED_APPS = [
     'trips.apps.TripsConfig',
     'vehicles.apps.VehiclesConfig',
     'expenses.apps.ExpensesConfig',
+    'tolls.apps.TollsConfig',
     'reports.apps.ReportsConfig',
     'sync.apps.SyncConfig',
 ]

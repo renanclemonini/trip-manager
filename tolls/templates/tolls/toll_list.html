@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Pedágios — Gerenciador de Viagem{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left d-flex align-items-center">
+        <div class="page-header-title">
+            <h5 class="m-b-10">Pedágios</h5>
+            <p class="text-muted mb-0">{{ trip }}</p>
+            <a href="{% url 'trip_detail' trip.pk %}" class="text-muted fs-12 d-inline-block mt-1">← Voltar para a viagem</a>
+        </div>
+    </div>
+    <div class="page-header-right ms-auto">
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#tollModal">
+            <i class="feather-plus me-2"></i>Novo pedágio
+        </button>
+    </div>
+</div>
+
+{% include 'includes/offline_sync.html' %}
+
+<div class="card">
+    <div class="card-body p-0">
+        {% if tolls %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Data/hora</th>
+                            <th>Local/Praça</th>
+                            <th>Valor</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for toll in tolls %}
+                            <tr class="position-relative">
+                                <td><a href="{% url 'toll_detail' trip.pk toll.pk %}" class="stretched-link text-reset">{{ toll.datetime|date:'d/m/Y H:i' }}</a></td>
+                                <td>{{ toll.location }}</td>
+                                <td>R$ {{ toll.amount_spent }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="p-4 text-muted">
+                Nenhum pedágio registrado ainda.
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+{% include 'includes/form_masks_scripts.html' %}
+{% endblock %}
+
+{% block modals %}
+<div class="modal fade" id="tollModal" tabindex="-1" aria-labelledby="tollModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'toll_create' trip.pk %}" novalidate
+                  data-sync-form="toll"
+                  data-sync-url="{% url 'sync_toll' %}"
+                  data-sync-trip="{{ trip.pk }}"
+                  data-sync-list-url="{% url 'toll_list' trip.pk %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="tollModalLabel">Novo pedágio</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        {% for field in form %}
+                            <div class="col-md-6">
+                                <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                                {{ field }}
+                                {% for error in field.errors %}
+                                    <div class="text-danger fs-12 mt-1">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

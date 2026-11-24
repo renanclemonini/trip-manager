@@ -6,6 +6,7 @@ urlpatterns = [
     path('', include('trips.urls')),
     path('', include('vehicles.urls')),
     path('', include('expenses.urls')),
+    path('', include('tolls.urls')),
     path('', include('reports.urls')),
     path('', include('sync.urls')),
     path('', include('accounts.urls')),

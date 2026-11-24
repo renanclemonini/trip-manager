@@ -174,6 +174,28 @@
         </table>
     {% endif %}
 
+    {% if tolls %}
+        <h2>Pedágios</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Data/hora</th>
+                    <th>Local/Praça</th>
+                    <th class="num">Valor</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for toll in tolls %}
+                    <tr>
+                        <td>{{ toll.datetime|date:'d/m/Y H:i' }}</td>
+                        <td>{{ toll.location }}</td>
+                        <td class="num">R$ {{ toll.amount_spent|intcomma }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+
     {% include 'reports/_refueling_stats.html' %}
     {% include 'reports/_meal_stats.html' %}
     {% include 'reports/_charts.html' %}

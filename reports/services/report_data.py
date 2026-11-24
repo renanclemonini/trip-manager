@@ -12,4 +12,5 @@ def get_final_report_context(trip):
         'lodgings': trip.lodgings.order_by('check_in'),
         'meals': trip.meals.order_by('datetime'),
         'sightseeings': trip.sightseeings.order_by('created_at'),
+        'tolls': trip.tolls.order_by('datetime'),
     }

@@ -6,6 +6,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from expenses import services as expenses_services
+from tolls import services as tolls_services
 from trips.models import Trip, TripType
 from vehicles import services as vehicles_services
 from vehicles.models import Refueling, TripVehicle
@@ -22,10 +23,11 @@ DASHBOARD_CATEGORY_LABELS = {
     'lodging': 'Hospedagem',
     'meal': 'Alimentação',
     'sightseeing': 'Passeios',
+    'toll': 'Pedágio',
 }
 
 DASHBOARD_CATEGORIES_BY_TRIP_TYPE = {
-    TripType.CAR: ('refueling', 'lodging', 'meal'),
+    TripType.CAR: ('refueling', 'lodging', 'meal', 'toll'),
     TripType.PLANE: ('transport', 'lodging', 'meal'),
     TripType.BUS: ('transport', 'lodging', 'meal', 'sightseeing'),
 }
@@ -86,6 +88,8 @@ def _get_category_total(trip, key):
         return expenses_services.get_lodging_total(trip)
     if key == 'meal':
         return expenses_services.get_meal_total(trip)
+    if key == 'toll':
+        return tolls_services.get_toll_total(trip)
     return expenses_services.get_sightseeing_total(trip)
 
 
