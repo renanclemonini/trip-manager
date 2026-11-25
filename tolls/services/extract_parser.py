@@ -31,6 +31,7 @@ class ParsedRow:
     plate: str
     launch_datetime: datetime
     description: str
+    raw_description: str
     amount: Decimal
     passage_datetime: datetime | None
 
@@ -45,6 +46,20 @@ class ExtractResult:
 
 def _parse_aware(text, date_format):
     return make_aware(datetime.strptime(text, date_format), TZ)
+
+
+def _clean_description(description):
+    """Display cleanup only — hashing keeps the raw description.
+
+    The provider prints the description followed by ' - ' before the
+    'Cat. n' signature; the trailing hyphen is an artifact. When the PDF
+    line breaks inside a road code ('SP-070'), flattening joins the
+    fragments with a space ('SP- 070'); the hyphen is glued to the
+    preceding letter, so only that shape is rejoined — spaced roads
+    ('SP - 088') stay verbatim.
+    """
+    cleaned = re.sub(r'\s*-\s*$', '', description)
+    return re.sub(r'(?<=\w)-\s+(?=\d)', '-', cleaned)
 
 
 def _parse_amount(token):
@@ -166,7 +181,8 @@ def parse_extract_text(text):
         rows.append(ParsedRow(
             plate=plate,
             launch_datetime=launch,
-            description=description,
+            description=_clean_description(description),
+            raw_description=description,
             amount=amount,
             passage_datetime=passage,
         ))

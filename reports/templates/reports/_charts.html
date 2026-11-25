@@ -1,7 +1,11 @@
-<h2>Gastos por categoria ({{ chart_type_label }})</h2>
-<img src="{{ category_chart }}" alt="Gastos por categoria">
+<div class="chart">
+    <h2>Gastos por categoria ({{ chart_type_label }})</h2>
+    <img src="{{ category_chart }}" alt="Gastos por categoria">
+</div>
 
 {% if consumption_chart %}
-    <h2>Consumo (km/l)</h2>
-    <img src="{{ consumption_chart }}" alt="Consumo por abastecimento">
+    <div class="chart">
+        <h2>Consumo (km/l)</h2>
+        <img src="{{ consumption_chart }}" alt="Consumo por abastecimento">
+    </div>
 {% endif %}

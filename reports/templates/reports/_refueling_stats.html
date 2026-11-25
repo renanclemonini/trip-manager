@@ -10,4 +10,7 @@
             <tr><td>Maior preço por litro</td><td>R$ {{ dashboard.refueling.max_price|default:'—' }}</td></tr>
         </tbody>
     </table>
+    {% if dashboard.refueling.total_distance and dashboard.refueling.consumption_distance and dashboard.refueling.total_distance != dashboard.refueling.consumption_distance %}
+        <p class="muted">O consumo médio e o custo por km usam a distância até o último abastecimento (a distância total considera o odômetro final).</p>
+    {% endif %}
 {% endif %}

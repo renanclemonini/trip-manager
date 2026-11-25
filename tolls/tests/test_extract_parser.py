@@ -96,6 +96,107 @@ class TollDescriptionReassemblyTests(SimpleTestCase):
         self.assertIn('SP070', tolls[0].description)
 
 
+class TollDescriptionCleanupTests(SimpleTestCase):
+    DESCRIPTION = (
+        'CONCESSIONARIA TESTE - PRAÇA ALFA, KM 57, SP-070 - '
+        'Cat. 1 - 23/11/2026 23:40:38'
+    )
+    CLEAN = 'CONCESSIONARIA TESTE - PRAÇA ALFA, KM 57, SP-070'
+    RAW = 'CONCESSIONARIA TESTE - PRAÇA ALFA, KM 57, SP-070 -'
+
+    def _parse(self, rows):
+        return parse_extract_text(
+            build_extract_text(
+                rows,
+                summary_quantity='0 1 0 0',
+                summary_total='R$ 0.00 -R$ 6.90 R$ 0.00 R$ 0.00',
+            )
+        )
+
+    def test_trailing_hyphen_removed_in_each_signature_variant(self):
+        variants = (
+            toll_text(description=self.DESCRIPTION),
+            toll_text(description=self.DESCRIPTION, glued_value=True),
+            toll_text(description=self.DESCRIPTION, glued_datetime=True),
+        )
+        for text in variants:
+            with self.subTest(text=text):
+                tolls = [row for row in self._parse([text]).rows
+                         if row.passage_datetime]
+                self.assertEqual(tolls[0].description, self.CLEAN)
+
+    def test_broken_road_code_is_rejoined(self):
+        description = (
+            'CONCESSIONARIA TESTE - PRAÇA ALFA, KM 57, SP-\n070 - '
+            'Cat. 1 - 23/11/2026 23:40:38'
+        )
+        tolls = [row for row in
+                 self._parse([toll_text(description=description)]).rows
+                 if row.passage_datetime]
+        self.assertEqual(tolls[0].description, self.CLEAN)
+
+    def test_spaced_road_kept_verbatim(self):
+        description = (
+            'ECOPISTAS - 22 PRAÇA GAMA, KM 92, SP - 088 - '
+            'Cat. 1 - 23/11/2026 23:40:38'
+        )
+        tolls = [row for row in
+                 self._parse([toll_text(description=description)]).rows
+                 if row.passage_datetime]
+        self.assertEqual(
+            tolls[0].description,
+            'ECOPISTAS - 22 PRAÇA GAMA, KM 92, SP - 088',
+        )
+
+    def test_raw_description_preserves_original_text(self):
+        tolls = [row for row in
+                 self._parse([toll_text(description=self.DESCRIPTION)]).rows
+                 if row.passage_datetime]
+        self.assertEqual(tolls[0].raw_description, self.RAW)
+
+    def test_fifteen_report_style_descriptions_change_only_trailing_hyphen(self):
+        descriptions = [
+            'CONCESSIONARIA TESTE - PRAÇA 01, KM 57, SP - 088',
+            'P02 PRAÇA BETA SUL, 40+800, SP - 088',
+            'FREEFLOW - CONCESSIONARIA TESTE - P02 PRAÇA BETA SUL, '
+            '40+800, SP - 088',
+            'ECOPISTAS - 22 PRAÇA GAMA, KM 92, SP070',
+            'VIA RAPIDA - PRAÇA DELTA NORTE, KM 114+300, BR - 116',
+            'CONCESSIONARIA ALPHA - 01 PRAÇA EPSILON, KM 12, SP - 270',
+            'P03 PRAÇA ZETA OESTE, 15+900, SP - 099',
+            'NOVO PEDAGIO - PRAÇA ETA SUL, KM 34+500, RJ - 104',
+            'CONCESSIONARIA BETA - PRAÇA TETA, KM 2, SP - 021',
+            'PEDAGIO LESTE - 40+800 PRAÇA IOTA, SP - 088',
+            'CONCESSIONARIA GAMA - PRAÇA CAPA NORTE, KM 333, BR - 381',
+            'FREEFLOW - PRAÇA LAMBDA, KM 8+200, SP - 010',
+            'CONCESSIONARIA DELTA - PRAÇA MI, KM 45, SP - 065',
+            'PEDAGIO SUL - PRAÇA NI OESTE, 12+300, SP - 040',
+            'CONCESSIONARIA EPSILON - PRAÇA XI, KM 540+100, BR - 040',
+        ]
+        rows = [
+            toll_text(
+                launch=f'20/11/2026 - 10:00:{day:02d}',
+                description=(
+                    f'{description} - Cat. 1 - 20/11/2026 09:00:{day:02d}'
+                ),
+                value='6.90',
+            )
+            for day, description in enumerate(descriptions)
+        ]
+        result = parse_extract_text(
+            build_extract_text(
+                rows,
+                summary_quantity='0 15 0 0',
+                summary_total='R$ 0.00 -R$ 103.50 R$ 0.00 R$ 0.00',
+            )
+        )
+        tolls = [row for row in result.rows if row.passage_datetime]
+        self.assertEqual(len(tolls), 15)
+        for toll, description in zip(tolls, descriptions):
+            self.assertEqual(toll.description, description)
+            self.assertEqual(toll.raw_description, f'{description} -')
+
+
 class NonTollClassificationTests(SimpleTestCase):
     def _parse(self, rows, quantity='0 1 0 1', total='R$ 0.00 -R$ 6.90 R$ 0.00 -R$ 9.90'):
         return parse_extract_text(

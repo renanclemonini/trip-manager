@@ -1,4 +1,5 @@
 import io
+import re
 
 import matplotlib
 
@@ -45,12 +46,25 @@ def build_category_chart(labels, series, chart_type):
     return _figure_to_png(figure)
 
 
+def format_mileage_label(label):
+    """Group digits with Brazilian thousands separator (no locale)."""
+    return re.sub(
+        r'\d+',
+        lambda match: f'{int(match.group()):,}'.replace(',', '.'),
+        label,
+    )
+
+
 def build_consumption_chart(labels, series):
     """Fuel consumption evolution (line only — RF11 data)."""
     figure, axes = plt.subplots(figsize=(7, 3.5), dpi=150)
     if not labels or not series:
         _empty_chart(figure, axes)
         return _figure_to_png(figure)
-    axes.plot(labels, series, marker='o')
+    axes.plot(
+        [format_mileage_label(label) for label in labels],
+        series,
+        marker='o',
+    )
     axes.set_ylabel('km/l')
     return _figure_to_png(figure)

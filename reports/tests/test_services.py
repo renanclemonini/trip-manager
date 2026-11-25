@@ -1,6 +1,7 @@
 import shutil
 from datetime import date, datetime, timedelta
 from decimal import Decimal
+from io import BytesIO
 from unittest import skipUnless
 from unittest.mock import Mock, patch
 
@@ -10,6 +11,7 @@ from django.utils import timezone
 from django.utils.timezone import make_aware
 
 from accounts.models import User
+from pypdf import PdfReader
 from reports.services import ReportDeliveryError, email_client, telegram_client
 from reports.services import chart_builder, pdf_builder, report_data
 from tolls.models import Toll
@@ -67,6 +69,26 @@ class ConsumptionChartTests(SimpleTestCase):
 
     def test_empty_series_is_safe(self):
         data = chart_builder.build_consumption_chart([], [])
+        self.assertTrue(data.startswith(b'\x89PNG'))
+
+    def test_mileage_labels_use_brazilian_thousands(self):
+        self.assertEqual(
+            chart_builder.format_mileage_label('30537 km'), '30.537 km'
+        )
+        self.assertEqual(
+            chart_builder.format_mileage_label('1764 km'), '1.764 km'
+        )
+        self.assertEqual(
+            chart_builder.format_mileage_label('999 km'), '999 km'
+        )
+        self.assertEqual(
+            chart_builder.format_mileage_label('0 km'), '0 km'
+        )
+
+    def test_chart_builds_with_formatted_labels(self):
+        data = chart_builder.build_consumption_chart(
+            ['30537 km', '1764 km'], [16.67, 12.5]
+        )
         self.assertTrue(data.startswith(b'\x89PNG'))
 
 
@@ -352,6 +374,99 @@ class FinalReportContextTests(TestCase):
         )
         self.assertEqual(context['transport']['airline'], 'Azul')
         self.assertEqual(list(context['refuelings']), [])
+
+
+def create_paginated_car_trip(user):
+    """Car trip with enough history to force pagination before the charts.
+
+    Tuned so the consumption title lands at the end of page 2 while its
+    chart flows to page 3 — reproduces the orphan title (Fase 44).
+    """
+    trip = Trip.objects.create(
+        created_by=user,
+        origin_city='São Paulo',
+        origin_state='SP',
+        destination_city='Curitiba',
+        destination_state='PR',
+        trip_type=TripType.CAR,
+        start_datetime=timezone.now() - timedelta(days=3),
+        end_datetime=timezone.now() - timedelta(hours=1),
+    )
+    vehicle = Vehicle.objects.create(
+        vehicle_type=VehicleType.CAR, brand='Fiat', model='Argo'
+    )
+    TripVehicle.objects.create(
+        trip=trip, vehicle=vehicle, initial_mileage=1000,
+        final_mileage=40000,
+    )
+    base = timezone.now() - timedelta(days=3)
+    for index in range(6):
+        Refueling.objects.create(
+            trip=trip, city=f'Cidade {index}', state='SP',
+            liters=Decimal('40.00'), amount_spent=Decimal('250.00'),
+            total_mileage=1000 + 5000 * (index + 1),
+            datetime=base + timedelta(hours=6 * (index + 1)),
+        )
+    for index in range(12):
+        Meal.objects.create(
+            trip=trip, city='Curitiba', state='PR',
+            amount_spent=Decimal('35.00'),
+            datetime=base + timedelta(hours=2 + index),
+        )
+    for index in range(5):
+        Lodging.objects.create(
+            trip=trip, city='Curitiba', state='PR',
+            amount_spent=Decimal('200.00'),
+            check_in=base + timedelta(days=1),
+            check_out=base + timedelta(days=1, hours=12),
+        )
+    for index in range(4):
+        Toll.objects.create(
+            trip=trip, location=f'Praça {index}',
+            amount_spent=Decimal('6.90'),
+            datetime=base + timedelta(hours=1 + index),
+        )
+    return trip
+
+
+@skipUnless(WKWEBTOPDF_AVAILABLE, 'wkhtmltopdf não disponível neste ambiente')
+class ChartPaginationTests(TestCase):
+    """Chart titles must share the page with their image (Fase 44)."""
+
+    def setUp(self):
+        self.trip = create_paginated_car_trip(
+            create_user('orphan@example.com')
+        )
+
+    def _pages(self):
+        pdf = pdf_builder.build_final_report_pdf(self.trip, 'bar')
+        reader = PdfReader(BytesIO(pdf))
+        pages = []
+        for page in reader.pages:
+            pages.append((page.extract_text() or '', len(page.images)))
+        return pages
+
+    def test_category_title_shares_page_with_its_chart(self):
+        pages = self._pages()
+        first_image = next(
+            index for index, (_, count) in enumerate(pages) if count
+        )
+        title_page = next(
+            index for index, (text, _) in enumerate(pages)
+            if 'Gastos por categoria' in text
+        )
+        self.assertEqual(title_page, first_image)
+
+    def test_consumption_title_shares_page_with_its_chart(self):
+        pages = self._pages()
+        last_image = max(
+            index for index, (_, count) in enumerate(pages) if count
+        )
+        title_page = next(
+            index for index, (text, _) in enumerate(pages)
+            if 'Consumo (km/l)' in text
+        )
+        self.assertEqual(title_page, last_image)
 
 
 @skipUnless(WKWEBTOPDF_AVAILABLE, 'wkhtmltopdf não disponível neste ambiente')

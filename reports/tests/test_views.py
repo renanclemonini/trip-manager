@@ -342,3 +342,52 @@ class FinalReportTemplateLabelTests(TestCase):
     def test_no_refueling_and_no_final_omits_row(self):
         html = self.render_report()
         self.assertNotIn('Odômetro final', html)
+
+
+class RefuelingStatsNoteTests(TestCase):
+    NOTE = (
+        'O consumo médio e o custo por km usam a distância até o '
+        'último abastecimento (a distância total considera o '
+        'odômetro final).'
+    )
+
+    def setUp(self):
+        self.user = create_user('refuel-note@example.com')
+        self.trip = create_trip(self.user)
+        vehicle = Vehicle.objects.create(
+            vehicle_type=VehicleType.CAR, brand='Fiat', model='Argo'
+        )
+        self.trip_vehicle = TripVehicle.objects.create(
+            trip=self.trip, vehicle=vehicle, initial_mileage=1000
+        )
+
+    def render_report(self):
+        context = report_data.get_final_report_context(self.trip)
+        return render_to_string('reports/trip_final_report.html', context)
+
+    def add_refueling(self, total_mileage=1500):
+        Refueling.objects.create(
+            trip=self.trip,
+            city='Campinas',
+            state='SP',
+            liters=Decimal('30.00'),
+            amount_spent=Decimal('150.00'),
+            total_mileage=total_mileage,
+            datetime=timezone.now(),
+        )
+
+    def test_note_shown_when_final_odometer_exceeds_last_refueling(self):
+        self.add_refueling(1500)
+        self.trip_vehicle.final_mileage = 2000
+        self.trip_vehicle.save()
+        self.assertIn(self.NOTE, self.render_report())
+
+    def test_note_hidden_without_final_odometer(self):
+        self.add_refueling(1500)
+        self.assertNotIn(self.NOTE, self.render_report())
+
+    def test_note_hidden_when_final_equals_last_refueling(self):
+        self.add_refueling(1500)
+        self.trip_vehicle.final_mileage = 1500
+        self.trip_vehicle.save()
+        self.assertNotIn(self.NOTE, self.render_report())

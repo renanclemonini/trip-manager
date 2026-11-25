@@ -1,4 +1,5 @@
 import io
+import hashlib
 from datetime import datetime, timedelta
 from decimal import Decimal
 from unittest import mock
@@ -369,6 +370,110 @@ class DeduplicationPreviewTests(TestCase):
         )
         self.assertEqual(again['created'], 0)
         self.assertEqual(Toll.objects.filter(trip=self.trip).count(), 2)
+
+
+class HashCompatibilityTests(TestCase):
+    """The import hash keeps the raw description (Fase 44) — reimporting
+    an equivalent extract recognizes tolls hashed with the old parser."""
+
+    def setUp(self):
+        self.user = create_user('hash@example.com')
+        self.trip = create_trip(self.user)
+
+    @staticmethod
+    def legacy_hash(plate, passage, description, amount):
+        raw = (
+            f'{plate}|{passage.isoformat()}|'
+            f'{" ".join(description.split())}|{amount}'
+        )
+        return hashlib.sha256(raw.encode('utf-8')).hexdigest()
+
+    def suffixed_text(self):
+        return build_extract_text(
+            [
+                toll_text(
+                    description=(
+                        'CONCESSIONARIA TESTE - PRAÇA ALFA, KM 57, '
+                        'SP-070 - Cat. 1 - 23/11/2026 23:40:38'
+                    )
+                )
+            ],
+            summary_quantity='0 1 0 0',
+            summary_total='R$ 0.00 -R$ 6.90 R$ 0.00 R$ 0.00',
+        )
+
+    def test_hash_is_computed_over_raw_description(self):
+        result = parse_extract_text(self.suffixed_text())
+        row = result.rows[0]
+        preview = import_service.build_preview_from_result(
+            self.trip, result, self.user
+        )
+        self.assertEqual(
+            preview['rows'][0]['hash'],
+            self.legacy_hash(
+                row.plate, row.passage_datetime, row.raw_description,
+                abs(row.amount),
+            ),
+        )
+        self.assertNotEqual(
+            preview['rows'][0]['hash'],
+            self.legacy_hash(
+                row.plate, row.passage_datetime, row.description,
+                abs(row.amount),
+            ),
+        )
+
+    def test_same_extract_yields_same_hash(self):
+        first = import_service.build_preview_from_result(
+            self.trip, parse_extract_text(self.suffixed_text()), self.user
+        )
+        second = import_service.build_preview_from_result(
+            self.trip, parse_extract_text(self.suffixed_text()), self.user
+        )
+        self.assertEqual(
+            first['rows'][0]['hash'], second['rows'][0]['hash']
+        )
+
+    def test_reimport_with_legacy_hash_creates_no_new_toll(self):
+        result = parse_extract_text(self.suffixed_text())
+        row = result.rows[0]
+        legacy = self.legacy_hash(
+            row.plate, row.passage_datetime, row.raw_description,
+            abs(row.amount),
+        )
+        Toll.objects.create(
+            trip=self.trip,
+            location=row.description,
+            amount_spent=abs(row.amount),
+            datetime=row.passage_datetime,
+            source=TollSource.IMPORT,
+            import_hash=legacy,
+        )
+        preview = import_service.build_preview_from_result(
+            self.trip, result, self.user
+        )
+        self.assertFalse(preview['rows'][0]['checked'])
+        self.assertIn('importado', preview['rows'][0]['reason'])
+        signed = import_service.sign_preview(preview)
+        created = import_service.confirm_import(
+            self.trip, self.user, signed, ['0']
+        )
+        self.assertEqual(created['created'], 0)
+        self.assertEqual(Toll.objects.filter(trip=self.trip).count(), 1)
+
+    def test_confirmed_import_stores_cleaned_location(self):
+        result = parse_extract_text(self.suffixed_text())
+        preview = import_service.build_preview_from_result(
+            self.trip, result, self.user
+        )
+        signed = import_service.sign_preview(preview)
+        import_service.confirm_import(self.trip, self.user, signed, ['0'])
+        toll = Toll.objects.get(trip=self.trip)
+        self.assertEqual(
+            toll.location,
+            'CONCESSIONARIA TESTE - PRAÇA ALFA, KM 57, SP-070',
+        )
+        self.assertFalse(toll.location.endswith(' -'))
 
 
 class PreviewPayloadTests(TestCase):

@@ -92,7 +92,7 @@ def build_preview_from_result(trip, result, user):
     for index, row in enumerate(tolls):
         in_window = start <= row.passage_datetime <= end
         digest = _row_hash(
-            row.plate, row.passage_datetime, row.description,
+            row.plate, row.passage_datetime, row.raw_description,
             abs(row.amount),
         )
         reason = None

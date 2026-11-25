@@ -291,6 +291,7 @@ def get_refueling_aggregates(trip):
     total_amount = totals['total_amount']
     return {
         'total_distance': total_distance,
+        'consumption_distance': consumption_distance,
         'total_liters': total_liters,
         'total_amount': total_amount,
         'average_km_per_liter': (
