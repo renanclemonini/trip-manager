@@ -84,10 +84,22 @@ class TripVehicle(TimestampedModel):
     def clean(self):
         if self.trip_id is None:
             return
+        from django.core.exceptions import ValidationError
         from vehicles import services
 
-        services.validate_final_mileage(self, self.final_mileage)
-        services.validate_initial_mileage(self, self.initial_mileage)
+        errors = {}
+        try:
+            services.validate_final_mileage(self, self.final_mileage)
+        except ValidationError as exc:
+            for field, messages in exc.message_dict.items():
+                errors.setdefault(field, []).extend(messages)
+        try:
+            services.validate_initial_mileage(self, self.initial_mileage)
+        except ValidationError as exc:
+            for field, messages in exc.message_dict.items():
+                errors.setdefault(field, []).extend(messages)
+        if errors:
+            raise ValidationError(errors)
 
     def __str__(self):
         current_mileage = number_format(self.current_mileage, force_grouping=True)

@@ -65,7 +65,16 @@ class TripVehicleAdminValidationTests(TestCase):
     def test_final_mileage_below_initial_is_rejected(self):
         response = self.post('900')
         self.assert_change_failed(response)
-        self.assertContains(response, 'não pode ser menor')
+        errors = response.context['adminform'].form.errors
+        self.assertEqual(
+            errors['final_mileage'],
+            ['O odômetro final não pode ser menor que 1.000 km.'],
+        )
+        self.assertEqual(
+            errors['initial_mileage'],
+            ['O odômetro inicial não pode ser maior que o odômetro final '
+             '(900 km).'],
+        )
         self.trip_vehicle.refresh_from_db()
         self.assertIsNone(self.trip_vehicle.final_mileage)
 
@@ -129,7 +138,16 @@ class TripVehicleAdminValidationTests(TestCase):
             },
         )
         self.assert_change_failed(response)
-        self.assertContains(response, 'não pode ser menor')
+        errors = response.context['adminform'].form.errors
+        self.assertEqual(
+            errors['final_mileage'],
+            ['O odômetro final não pode ser menor que 1.000 km.'],
+        )
+        self.assertEqual(
+            errors['initial_mileage'],
+            ['O odômetro inicial não pode ser maior que o odômetro final '
+             '(900 km).'],
+        )
         self.assertFalse(
             TripVehicle.objects.filter(trip=trip, vehicle=vehicle).exists()
         )
@@ -163,9 +181,54 @@ class TripVehicleAdminValidationTests(TestCase):
         self.trip_vehicle.save()
         response = self.post('2000', initial_mileage='2500')
         self.assert_change_failed(response)
-        self.assertContains(response, 'não pode ser menor')
+        errors = response.context['adminform'].form.errors
+        self.assertEqual(
+            errors['final_mileage'],
+            ['O odômetro final não pode ser menor que 2.500 km.'],
+        )
+        self.assertEqual(
+            errors['initial_mileage'],
+            ['O odômetro inicial não pode ser maior que o odômetro final '
+             '(2.000 km).'],
+        )
         self.trip_vehicle.refresh_from_db()
         self.assertEqual(self.trip_vehicle.initial_mileage, 1000)
+
+    def test_raising_final_alone_resolves_conflict(self):
+        trip, vehicle = self.create_trip_and_vehicle()
+        legacy = TripVehicle.objects.create(
+            trip=trip, vehicle=vehicle, initial_mileage=2500,
+            final_mileage=2000,
+        )
+        url = reverse('admin:vehicles_tripvehicle_change', args=[legacy.pk])
+        response = self.client.post(url, {
+            'trip': trip.pk,
+            'vehicle': vehicle.pk,
+            'initial_mileage': '2500',
+            'final_mileage': '2500',
+        })
+        self.assertEqual(response.status_code, 302)
+        legacy.refresh_from_db()
+        self.assertEqual(legacy.initial_mileage, 2500)
+        self.assertEqual(legacy.final_mileage, 2500)
+
+    def test_lowering_initial_alone_resolves_conflict(self):
+        trip, vehicle = self.create_trip_and_vehicle()
+        legacy = TripVehicle.objects.create(
+            trip=trip, vehicle=vehicle, initial_mileage=2500,
+            final_mileage=2000,
+        )
+        url = reverse('admin:vehicles_tripvehicle_change', args=[legacy.pk])
+        response = self.client.post(url, {
+            'trip': trip.pk,
+            'vehicle': vehicle.pk,
+            'initial_mileage': '2000',
+            'final_mileage': '2000',
+        })
+        self.assertEqual(response.status_code, 302)
+        legacy.refresh_from_db()
+        self.assertEqual(legacy.initial_mileage, 2000)
+        self.assertEqual(legacy.final_mileage, 2000)
 
     def test_initial_mileage_above_last_refueling_is_rejected(self):
         self.add_refueling(1500)
