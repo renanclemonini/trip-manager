@@ -247,7 +247,7 @@ class ValidateFinalMileageTests(TestCase):
             services.validate_final_mileage(self.trip_vehicle, 900)
         self.assertEqual(
             context.exception.message_dict['final_mileage'][0],
-            'O odômetro final não pode ser menor que 1000 km.',
+            'O odômetro final não pode ser menor que 1.000 km.',
         )
 
     def test_below_last_refueling_raises(self):
@@ -256,5 +256,66 @@ class ValidateFinalMileageTests(TestCase):
             services.validate_final_mileage(self.trip_vehicle, 1400)
         self.assertEqual(
             context.exception.message_dict['final_mileage'][0],
-            'O odômetro final não pode ser menor que 1500 km.',
+            'O odômetro final não pode ser menor que 1.500 km.',
         )
+
+
+class ValidateInitialMileageTests(TestCase):
+    def setUp(self):
+        self.trip = create_trip(create_user('initial-rule@example.com'))
+        vehicle = Vehicle.objects.create(
+            vehicle_type=VehicleType.CAR, brand='Fiat', model='Argo'
+        )
+        self.trip_vehicle = TripVehicle.objects.create(
+            trip=self.trip, vehicle=vehicle, initial_mileage=1000
+        )
+
+    def add_refueling(self, total_mileage):
+        Refueling.objects.create(
+            trip=self.trip,
+            city='Campinas',
+            state='SP',
+            liters=Decimal('10.00'),
+            amount_spent=Decimal('50.00'),
+            total_mileage=total_mileage,
+            datetime=timezone.now(),
+        )
+
+    def test_without_final_compares_against_last_refueling(self):
+        self.add_refueling(1500)
+        with self.assertRaises(ValidationError) as context:
+            services.validate_initial_mileage(self.trip_vehicle, 1600)
+        self.assertEqual(
+            context.exception.message_dict['initial_mileage'][0],
+            'O odômetro inicial não pode ser maior que o último '
+            'abastecimento (1.500 km).',
+        )
+
+    def test_above_final_raises_naming_final(self):
+        self.trip_vehicle.final_mileage = 2000
+        with self.assertRaises(ValidationError) as context:
+            services.validate_initial_mileage(self.trip_vehicle, 2500)
+        self.assertEqual(
+            context.exception.message_dict['initial_mileage'][0],
+            'O odômetro inicial não pode ser maior que o odômetro final '
+            '(2.000 km).',
+        )
+
+    def test_both_violated_raises_with_smallest_limit(self):
+        self.add_refueling(1400)
+        self.trip_vehicle.final_mileage = 1500
+        with self.assertRaises(ValidationError) as context:
+            services.validate_initial_mileage(self.trip_vehicle, 2000)
+        self.assertEqual(
+            context.exception.message_dict['initial_mileage'][0],
+            'O odômetro inicial não pode ser maior que o último '
+            'abastecimento (1.400 km).',
+        )
+
+    def test_equal_to_limits_passes(self):
+        self.add_refueling(1500)
+        self.trip_vehicle.final_mileage = 1500
+        services.validate_initial_mileage(self.trip_vehicle, 1500)
+
+    def test_without_final_nor_refuelings_passes(self):
+        services.validate_initial_mileage(self.trip_vehicle, 1200)

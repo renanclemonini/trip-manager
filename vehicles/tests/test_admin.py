@@ -35,11 +35,11 @@ class TripVehicleAdminValidationTests(TestCase):
             'admin:vehicles_tripvehicle_change', args=[self.trip_vehicle.pk]
         )
 
-    def post(self, final_mileage):
+    def post(self, final_mileage, initial_mileage='1000'):
         return self.client.post(self.url, {
             'trip': self.trip.pk,
             'vehicle': self.vehicle.pk,
-            'initial_mileage': '1000',
+            'initial_mileage': initial_mileage,
             'final_mileage': final_mileage,
         })
 
@@ -141,4 +141,107 @@ class TripVehicleAdminValidationTests(TestCase):
         response = self.post('2200')
         self.assert_change_failed(response)
         self.assertContains(response, 'não pode ser menor')
-        self.assertContains(response, '2400')
+        self.assertContains(response, '2.400')
+
+    def create_trip_and_vehicle(self):
+        trip = Trip.objects.create(
+            created_by=self.superuser,
+            origin_city='São Paulo',
+            origin_state='SP',
+            destination_city='Curitiba',
+            destination_state='PR',
+            trip_type=TripType.CAR,
+            start_datetime=timezone.now() - timedelta(days=1),
+        )
+        vehicle = Vehicle.objects.create(
+            vehicle_type=VehicleType.CAR, brand='VW', model='Gol'
+        )
+        return trip, vehicle
+
+    def test_initial_mileage_above_final_is_rejected(self):
+        self.trip_vehicle.final_mileage = 2000
+        self.trip_vehicle.save()
+        response = self.post('2000', initial_mileage='2500')
+        self.assert_change_failed(response)
+        self.assertContains(response, 'não pode ser menor')
+        self.trip_vehicle.refresh_from_db()
+        self.assertEqual(self.trip_vehicle.initial_mileage, 1000)
+
+    def test_initial_mileage_above_last_refueling_is_rejected(self):
+        self.add_refueling(1500)
+        response = self.post('', initial_mileage='1600')
+        self.assert_change_failed(response)
+        self.assertContains(response, 'não pode ser maior')
+        self.trip_vehicle.refresh_from_db()
+        self.assertEqual(self.trip_vehicle.initial_mileage, 1000)
+
+    def test_initial_mileage_equal_to_final_is_accepted(self):
+        self.trip_vehicle.final_mileage = 2000
+        self.trip_vehicle.save()
+        response = self.post('2000', initial_mileage='2000')
+        errors = (
+            response.context['adminform'].form.errors
+            if response.context and 'adminform' in response.context
+            else None
+        )
+        self.assertEqual(response.status_code, 302, errors)
+        self.trip_vehicle.refresh_from_db()
+        self.assertEqual(self.trip_vehicle.initial_mileage, 2000)
+
+    def test_initial_mileage_with_null_final_is_accepted(self):
+        response = self.post('', initial_mileage='1100')
+        errors = (
+            response.context['adminform'].form.errors
+            if response.context and 'adminform' in response.context
+            else None
+        )
+        self.assertEqual(response.status_code, 302, errors)
+        self.trip_vehicle.refresh_from_db()
+        self.assertEqual(self.trip_vehicle.initial_mileage, 1100)
+        self.assertIsNone(self.trip_vehicle.final_mileage)
+
+    def test_correcting_initial_and_final_at_once_is_accepted(self):
+        trip, vehicle = self.create_trip_and_vehicle()
+        legacy = TripVehicle.objects.create(
+            trip=trip, vehicle=vehicle, initial_mileage=2000,
+            final_mileage=500,
+        )
+        url = reverse('admin:vehicles_tripvehicle_change', args=[legacy.pk])
+        response = self.client.post(url, {
+            'trip': trip.pk,
+            'vehicle': vehicle.pk,
+            'initial_mileage': '1000',
+            'final_mileage': '2500',
+        })
+        errors = (
+            response.context['adminform'].form.errors
+            if response.context and 'adminform' in response.context
+            else None
+        )
+        self.assertEqual(response.status_code, 302, errors)
+        legacy.refresh_from_db()
+        self.assertEqual(legacy.initial_mileage, 1000)
+        self.assertEqual(legacy.final_mileage, 2500)
+
+    def test_rules_read_new_values_not_persisted_ones(self):
+        trip, vehicle = self.create_trip_and_vehicle()
+        legacy = TripVehicle.objects.create(
+            trip=trip, vehicle=vehicle, initial_mileage=2000,
+            final_mileage=1500,
+        )
+        url = reverse('admin:vehicles_tripvehicle_change', args=[legacy.pk])
+        response = self.client.post(url, {
+            'trip': trip.pk,
+            'vehicle': vehicle.pk,
+            'initial_mileage': '1000',
+            'final_mileage': '1500',
+        })
+        errors = (
+            response.context['adminform'].form.errors
+            if response.context and 'adminform' in response.context
+            else None
+        )
+        self.assertEqual(response.status_code, 302, errors)
+        legacy.refresh_from_db()
+        self.assertEqual(legacy.initial_mileage, 1000)
+        self.assertEqual(legacy.final_mileage, 1500)

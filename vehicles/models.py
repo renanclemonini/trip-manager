@@ -87,6 +87,7 @@ class TripVehicle(TimestampedModel):
         from vehicles import services
 
         services.validate_final_mileage(self, self.final_mileage)
+        services.validate_initial_mileage(self, self.initial_mileage)
 
     def __str__(self):
         current_mileage = number_format(self.current_mileage, force_grouping=True)

@@ -1,4 +1,5 @@
 from datetime import date, timedelta
+from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -6,7 +7,14 @@ from django.utils import timezone
 from django.urls import reverse
 
 from trips.models import Trip, TripType
-from vehicles.models import BusTrip, FlightTrip, TripVehicle, Vehicle, VehicleType
+from vehicles.models import (
+    BusTrip,
+    FlightTrip,
+    Refueling,
+    TripVehicle,
+    Vehicle,
+    VehicleType,
+)
 
 
 def create_user(email):
@@ -136,6 +144,80 @@ class VehicleTransportViewTests(TestCase):
         trip_vehicle = TripVehicle.objects.get(trip=self.trip)
         self.assertEqual(trip_vehicle.initial_mileage, 2500)
         self.assertEqual(trip_vehicle.vehicle.brand, 'VW')
+
+    def create_trip_vehicle(self, final_mileage=None):
+        vehicle = Vehicle.objects.create(
+            vehicle_type=VehicleType.CAR, brand='Fiat', model='Argo'
+        )
+        return TripVehicle.objects.create(
+            trip=self.trip, vehicle=vehicle, initial_mileage=1000,
+            final_mileage=final_mileage,
+        )
+
+    def add_refueling(self, total_mileage):
+        Refueling.objects.create(
+            trip=self.trip,
+            city='Campinas',
+            state='SP',
+            liters=Decimal('10.00'),
+            amount_spent=Decimal('50.00'),
+            total_mileage=total_mileage,
+            datetime=timezone.now(),
+        )
+
+    def test_post_edit_initial_above_final_shows_error(self):
+        self.create_trip_vehicle(final_mileage=2000)
+        response = self.client.post(
+            reverse('vehicle_edit', args=[self.trip.pk]),
+            self._data(initial_mileage='2500'),
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'não pode ser maior')
+        trip_vehicle = TripVehicle.objects.get(trip=self.trip)
+        self.assertEqual(trip_vehicle.initial_mileage, 1000)
+        self.assertEqual(trip_vehicle.final_mileage, 2000)
+
+    def test_post_edit_initial_above_refueling_shows_error(self):
+        self.create_trip_vehicle()
+        self.add_refueling(1500)
+        response = self.client.post(
+            reverse('vehicle_edit', args=[self.trip.pk]),
+            self._data(initial_mileage='1600'),
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'não pode ser maior')
+        self.assertEqual(
+            TripVehicle.objects.get(trip=self.trip).initial_mileage, 1000
+        )
+
+    def test_superseded_final_does_not_block_unchanged_initial(self):
+        trip_vehicle = self.create_trip_vehicle(final_mileage=1400)
+        self.add_refueling(1800)
+        response = self.client.post(
+            reverse('vehicle_edit', args=[self.trip.pk]),
+            self._data(initial_mileage='1000', brand='VW'),
+        )
+        self.assertRedirects(
+            response, reverse('trip_detail', args=[self.trip.pk])
+        )
+        trip_vehicle.refresh_from_db()
+        self.assertEqual(trip_vehicle.initial_mileage, 1000)
+        self.assertEqual(trip_vehicle.vehicle.brand, 'VW')
+
+    def test_post_edit_correcting_initial_below_refueling_passes(self):
+        trip_vehicle = self.create_trip_vehicle()
+        trip_vehicle.initial_mileage = 2000
+        trip_vehicle.save()
+        self.add_refueling(1800)
+        response = self.client.post(
+            reverse('vehicle_edit', args=[self.trip.pk]),
+            self._data(initial_mileage='1500'),
+        )
+        self.assertRedirects(
+            response, reverse('trip_detail', args=[self.trip.pk])
+        )
+        trip_vehicle.refresh_from_db()
+        self.assertEqual(trip_vehicle.initial_mileage, 1500)
 
 
 class BusTransportViewTests(TestCase):

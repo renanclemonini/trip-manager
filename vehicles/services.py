@@ -10,6 +10,7 @@ from django.db.models import (
     Min,
     Sum,
 )
+from django.utils.formats import number_format
 
 from trips.models import TripType
 from vehicles.models import (
@@ -55,7 +56,31 @@ def validate_final_mileage(trip_vehicle, final_mileage):
     if final_mileage < minimum:
         raise ValidationError({
             'final_mileage': [
-                f'O odômetro final não pode ser menor que {minimum} km.'
+                f'O odômetro final não pode ser menor que '
+                f'{number_format(minimum, force_grouping=True)} km.'
+            ]
+        })
+
+
+def validate_initial_mileage(trip_vehicle, initial_mileage):
+    """Mirror of the RF33 rule for the initial odometer: it must be the
+    lowest known odometer (not above the final nor the last refueling).
+    Reused by TripVehicle.clean and by VehicleTripForm."""
+    limits = []
+    final = trip_vehicle.final_mileage
+    last_refueling = trip_vehicle.last_refueling
+    if final is not None and initial_mileage > final:
+        limits.append(('odômetro final', final))
+    if last_refueling is not None and (
+        initial_mileage > last_refueling.total_mileage
+    ):
+        limits.append(('último abastecimento', last_refueling.total_mileage))
+    if limits:
+        label, value = min(limits, key=lambda item: item[1])
+        raise ValidationError({
+            'initial_mileage': [
+                f'O odômetro inicial não pode ser maior que o {label} '
+                f'({number_format(value, force_grouping=True)} km).'
             ]
         })
 

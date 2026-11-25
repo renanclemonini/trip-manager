@@ -57,6 +57,23 @@ class VehicleTripForm(forms.Form):
         }),
     )
 
+    def __init__(self, *args, trip=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.trip = trip
+
+    def clean_initial_mileage(self):
+        initial_mileage = self.cleaned_data['initial_mileage']
+        trip_vehicle = getattr(self.trip, 'tripvehicle', None)
+        if trip_vehicle is None:
+            return initial_mileage
+        try:
+            services.validate_initial_mileage(trip_vehicle, initial_mileage)
+        except ValidationError as exc:
+            raise forms.ValidationError(
+                exc.message_dict['initial_mileage'][0]
+            )
+        return initial_mileage
+
     def clean_plate(self):
         plate = normalize_plate(self.cleaned_data.get('plate'))
         if plate is None:

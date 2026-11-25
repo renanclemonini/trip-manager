@@ -1,10 +1,14 @@
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
+from decimal import Decimal
 
 from django.test import TestCase
+from django.utils import timezone
 from django.utils.timezone import make_aware
 
+from accounts.models import User
 from trips.models import Trip, TripType
 from vehicles.forms import BusTripForm, FlightTripForm, VehicleTripForm
+from vehicles.models import Refueling, TripVehicle, Vehicle, VehicleType
 
 
 class VehicleTripFormTests(TestCase):
@@ -36,6 +40,80 @@ class VehicleTripFormInteractionMarkupTests(TestCase):
         self.assertEqual(widget.attrs['data-mask'], 'integer')
         self.assertEqual(widget.attrs['inputmode'], 'numeric')
         self.assertEqual(widget.attrs['placeholder'], '0')
+
+
+class VehicleTripFormInitialMileageTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            email='initial-form@example.com', password='strong-pass-123'
+        )
+        self.trip = Trip.objects.create(
+            created_by=self.user,
+            origin_city='São Paulo',
+            origin_state='SP',
+            destination_city='Curitiba',
+            destination_state='PR',
+            trip_type=TripType.CAR,
+            start_datetime=timezone.now() - timedelta(days=1),
+        )
+
+    def create_trip_vehicle(self, final_mileage=None):
+        vehicle = Vehicle.objects.create(
+            vehicle_type=VehicleType.CAR, brand='Fiat', model='Argo'
+        )
+        return TripVehicle.objects.create(
+            trip=self.trip, vehicle=vehicle, initial_mileage=1000,
+            final_mileage=final_mileage,
+        )
+
+    def add_refueling(self, total_mileage):
+        Refueling.objects.create(
+            trip=self.trip,
+            city='Campinas',
+            state='SP',
+            liters=Decimal('10.00'),
+            amount_spent=Decimal('50.00'),
+            total_mileage=total_mileage,
+            datetime=timezone.now(),
+        )
+
+    def _data(self, **overrides):
+        data = {'brand': 'Fiat', 'model': 'Argo', 'initial_mileage': '1000'}
+        data.update(overrides)
+        return data
+
+    def test_initial_above_final_is_invalid(self):
+        self.create_trip_vehicle(final_mileage=2000)
+        form = VehicleTripForm(
+            data=self._data(initial_mileage='2500'), trip=self.trip
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn('initial_mileage', form.errors)
+        self.assertIn(
+            'não pode ser maior', form.errors['initial_mileage'][0]
+        )
+
+    def test_initial_above_last_refueling_without_final_is_invalid(self):
+        self.create_trip_vehicle()
+        self.add_refueling(1500)
+        form = VehicleTripForm(
+            data=self._data(initial_mileage='1600'), trip=self.trip
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn('initial_mileage', form.errors)
+        self.assertIn(
+            'não pode ser maior', form.errors['initial_mileage'][0]
+        )
+
+    def test_without_tripvehicle_is_valid(self):
+        form = VehicleTripForm(
+            data=self._data(initial_mileage='2500'), trip=self.trip
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_without_trip_is_valid(self):
+        form = VehicleTripForm(data=self._data(initial_mileage='2500'))
+        self.assertTrue(form.is_valid(), form.errors)
 
 
 class BusTripFormTests(TestCase):

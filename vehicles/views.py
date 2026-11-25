@@ -42,6 +42,11 @@ class VehicleCreateView(TransportFormViewMixin):
             return redirect('vehicle_edit', trip_id=self.get_trip().pk)
         return super().get(request, *args, **kwargs)
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['trip'] = self.get_trip()
+        return kwargs
+
     def save_transport(self, form):
         services.create_car_transport(self.get_trip(), form.cleaned_data)
 
@@ -59,6 +64,11 @@ class VehicleUpdateView(TransportFormViewMixin):
 
     def get_trip_vehicle(self):
         return get_object_or_404(TripVehicle, trip=self.get_trip())
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['trip'] = self.get_trip()
+        return kwargs
 
     def get_initial(self):
         trip_vehicle = self.get_trip_vehicle()
