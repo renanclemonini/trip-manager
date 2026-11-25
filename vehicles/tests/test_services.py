@@ -11,7 +11,14 @@ from accounts.models import User
 from trips import services as trips_services
 from trips.models import Trip, TripType
 from vehicles import services
-from vehicles.models import BusTrip, FlightTrip, TripVehicle, VehicleType
+from vehicles.models import (
+    BusTrip,
+    FlightTrip,
+    Refueling,
+    TripVehicle,
+    Vehicle,
+    VehicleType,
+)
 
 
 def create_user(email='services-vehicles@example.com'):
@@ -202,3 +209,52 @@ class PostCreatePathUsesReverseTests(TestCase):
                     trips_services.get_trip_post_create_path(trip),
                     reverse(url_name, kwargs={'trip_id': trip.pk}),
                 )
+
+
+class ValidateFinalMileageTests(TestCase):
+    def setUp(self):
+        self.trip = create_trip(create_user('final-rule@example.com'))
+        vehicle = Vehicle.objects.create(
+            vehicle_type=VehicleType.CAR, brand='Fiat', model='Argo'
+        )
+        self.trip_vehicle = TripVehicle.objects.create(
+            trip=self.trip, vehicle=vehicle, initial_mileage=1000
+        )
+
+    def add_refueling(self, total_mileage):
+        Refueling.objects.create(
+            trip=self.trip,
+            city='Campinas',
+            state='SP',
+            liters=Decimal('10.00'),
+            amount_spent=Decimal('50.00'),
+            total_mileage=total_mileage,
+            datetime=timezone.now(),
+        )
+
+    def test_none_passes(self):
+        services.validate_final_mileage(self.trip_vehicle, None)
+
+    def test_equal_to_initial_passes(self):
+        services.validate_final_mileage(self.trip_vehicle, 1000)
+
+    def test_equal_to_last_refueling_passes(self):
+        self.add_refueling(1500)
+        services.validate_final_mileage(self.trip_vehicle, 1500)
+
+    def test_below_initial_raises(self):
+        with self.assertRaises(ValidationError) as context:
+            services.validate_final_mileage(self.trip_vehicle, 900)
+        self.assertEqual(
+            context.exception.message_dict['final_mileage'][0],
+            'O odômetro final não pode ser menor que 1000 km.',
+        )
+
+    def test_below_last_refueling_raises(self):
+        self.add_refueling(1500)
+        with self.assertRaises(ValidationError) as context:
+            services.validate_final_mileage(self.trip_vehicle, 1400)
+        self.assertEqual(
+            context.exception.message_dict['final_mileage'][0],
+            'O odômetro final não pode ser menor que 1500 km.',
+        )

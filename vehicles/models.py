@@ -73,6 +73,21 @@ class TripVehicle(TimestampedModel):
     def current_mileage(self):
         return self.effective_mileage
 
+    @property
+    def final_mileage_is_effective(self):
+        """True when the final odometer is the highest known value (RF33)."""
+        return (
+            self.final_mileage is not None
+            and self.final_mileage == self.current_mileage
+        )
+
+    def clean(self):
+        if self.trip_id is None:
+            return
+        from vehicles import services
+
+        services.validate_final_mileage(self, self.final_mileage)
+
     def __str__(self):
         current_mileage = number_format(self.current_mileage, force_grouping=True)
         return f"{self.trip}: {self.vehicle.brand} {self.vehicle.model} ({current_mileage} km)"

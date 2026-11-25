@@ -353,6 +353,29 @@ class TripDetailTransportSummaryTests(TestCase):
         self.assertNotContains(response, 'Odômetro final')
         self.assertNotContains(response, 'Odômetro atual')
 
+    def test_completed_with_superseded_final_shows_last_refueling_label(self):
+        self.trip.end_datetime = timezone.now()
+        self.trip.save()
+        create_trip_vehicle(self.trip, final_mileage=1400)
+        create_refueling(self.trip, 1800)
+        response = self.client.get(
+            reverse('trip_detail', args=[self.trip.pk])
+        )
+        self.assertContains(
+            response,
+            'Odômetro final (último abastecimento): 1.800 km',
+        )
+
+    def test_completed_with_final_equal_to_refueling_shows_final_label(self):
+        self.trip.end_datetime = timezone.now()
+        self.trip.save()
+        create_trip_vehicle(self.trip, final_mileage=1800)
+        create_refueling(self.trip, 1800)
+        response = self.client.get(
+            reverse('trip_detail', args=[self.trip.pk])
+        )
+        self.assertContains(response, 'Odômetro final: 1.800 km')
+
     def test_current_mileage_defaults_to_initial_without_refuelings(self):
         vehicle = Vehicle.objects.create(
             vehicle_type=VehicleType.CAR, brand='Fiat', model='Argo'
@@ -707,6 +730,30 @@ class TripDetailDashboardTests(TestCase):
         )
         self.assertContains(
             response, 'Distância total (odômetro final)'
+        )
+
+    def test_distance_label_with_superseded_final_mileage(self):
+        create_trip_vehicle(self.trip, final_mileage=1400)
+        create_refueling(self.trip, 1800)
+        response = self.client.get(
+            reverse('trip_detail', args=[self.trip.pk])
+        )
+        self.assertContains(
+            response, 'Distância total (último abastecimento)'
+        )
+        self.assertNotContains(response, 'Distância total (odômetro final)')
+
+    def test_distance_label_with_final_equal_to_last_refueling(self):
+        create_trip_vehicle(self.trip, final_mileage=1800)
+        create_refueling(self.trip, 1800)
+        response = self.client.get(
+            reverse('trip_detail', args=[self.trip.pk])
+        )
+        self.assertContains(
+            response, 'Distância total (odômetro final)'
+        )
+        self.assertNotContains(
+            response, 'Distância total (último abastecimento)'
         )
 
 

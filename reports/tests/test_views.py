@@ -326,6 +326,40 @@ class FinalReportTemplateLabelTests(TestCase):
         self.assertIn('<td>Odômetro final</td>', html)
         self.assertNotIn('último abastecimento', html)
 
+    def test_final_equal_to_last_refueling_keeps_plain_final_label(self):
+        Refueling.objects.create(
+            trip=self.trip,
+            city='Campinas',
+            state='SP',
+            liters=Decimal('30.00'),
+            amount_spent=Decimal('150.00'),
+            total_mileage=1500,
+            datetime=timezone.now(),
+        )
+        self.trip_vehicle.final_mileage = 1500
+        self.trip_vehicle.save()
+        html = self.render_report()
+        self.assertIn('<td>Odômetro final</td>', html)
+        self.assertNotIn('último abastecimento', html)
+
+    def test_superseded_final_shows_last_refueling_label(self):
+        Refueling.objects.create(
+            trip=self.trip,
+            city='Campinas',
+            state='SP',
+            liters=Decimal('30.00'),
+            amount_spent=Decimal('150.00'),
+            total_mileage=1500,
+            datetime=timezone.now(),
+        )
+        self.trip_vehicle.final_mileage = 1400
+        self.trip_vehicle.save()
+        html = self.render_report()
+        self.assertIn(
+            '<td>Odômetro final (último abastecimento)</td>', html
+        )
+        self.assertNotIn('<td>Odômetro final</td>', html)
+
     def test_legacy_without_final_keeps_refueling_label(self):
         Refueling.objects.create(
             trip=self.trip,

@@ -45,6 +45,21 @@ def create_car_transport(trip, data):
         )
 
 
+def validate_final_mileage(trip_vehicle, final_mileage):
+    """RF33 minimum rule: the final odometer cannot be below the highest
+    known odometer (initial or last refueling). Reused by the admin model
+    form (via TripVehicle.clean) and by FinishTripForm."""
+    if final_mileage is None:
+        return
+    minimum = trip_vehicle.current_mileage
+    if final_mileage < minimum:
+        raise ValidationError({
+            'final_mileage': [
+                f'O odômetro final não pode ser menor que {minimum} km.'
+            ]
+        })
+
+
 def update_car_transport(trip, data):
     _assert_trip_type(trip, TripType.CAR, 'Veículo')
     with transaction.atomic():
@@ -227,7 +242,9 @@ def get_transport_details(trip):
         has_final = trip_vehicle.final_mileage is not None
         if has_final or last_refueling:
             details['final_mileage'] = trip_vehicle.effective_mileage
-            details['has_final_odometer'] = has_final
+            details['has_final_odometer'] = (
+                trip_vehicle.final_mileage_is_effective
+            )
         return details
     if trip.trip_type == TripType.BUS:
         bus_trip = getattr(trip, 'bustrip', None)

@@ -231,13 +231,21 @@ class TransportDetailsTests(TestCase):
         self.assertEqual(details['final_mileage'], 2000)
         self.assertTrue(details['has_final_odometer'])
 
-    def test_late_refueling_higher_than_final_uses_effective_mileage(self):
+    def test_car_trip_final_mileage_equal_to_refueling_is_effective(self):
+        trip = create_car_trip(create_user('details-equal@example.com'))
+        trip.tripvehicle.final_mileage = 1500
+        trip.tripvehicle.save()
+        details = vehicles_services.get_transport_details(trip)
+        self.assertEqual(details['final_mileage'], 1500)
+        self.assertTrue(details['has_final_odometer'])
+
+    def test_late_refueling_higher_than_final_marks_last_refueling_label(self):
         trip = create_car_trip(create_user('details-late@example.com'))
         trip.tripvehicle.final_mileage = 1400
         trip.tripvehicle.save()
         details = vehicles_services.get_transport_details(trip)
         self.assertEqual(details['final_mileage'], 1500)
-        self.assertTrue(details['has_final_odometer'])
+        self.assertFalse(details['has_final_odometer'])
 
     def test_legacy_car_trip_without_final_keeps_refueling_value(self):
         trip = create_car_trip(create_user('details-legacy@example.com'))

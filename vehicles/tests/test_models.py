@@ -156,6 +156,29 @@ class TripVehicleFinalMileageTests(TestCase):
         self.assertEqual(self.trip_vehicle.current_mileage, 1000)
         self.assertEqual(self.trip_vehicle.effective_mileage, 1000)
 
+    def test_final_mileage_is_effective_when_highest(self):
+        create_refueling(self.trip, 1500)
+        self.trip_vehicle.final_mileage = 2000
+        self.assertTrue(self.trip_vehicle.final_mileage_is_effective)
+
+    def test_final_mileage_is_effective_when_equal_to_last_refueling(self):
+        create_refueling(self.trip, 1500)
+        self.trip_vehicle.final_mileage = 1500
+        self.assertTrue(self.trip_vehicle.final_mileage_is_effective)
+
+    def test_final_mileage_is_effective_without_refuelings(self):
+        self.trip_vehicle.final_mileage = 2000
+        self.assertTrue(self.trip_vehicle.final_mileage_is_effective)
+
+    def test_final_mileage_is_not_effective_when_below_last_refueling(self):
+        create_refueling(self.trip, 1800)
+        self.trip_vehicle.final_mileage = 1500
+        self.assertFalse(self.trip_vehicle.final_mileage_is_effective)
+
+    def test_final_mileage_is_not_effective_without_final(self):
+        create_refueling(self.trip, 1800)
+        self.assertFalse(self.trip_vehicle.final_mileage_is_effective)
+
 
 class BusTripFieldsTests(TestCase):
     def test_bus_trip_persists_decimal_amount(self):

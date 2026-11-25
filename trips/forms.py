@@ -1,8 +1,10 @@
 from django import forms
+from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 from common.choices import State
 from trips.models import Trip, TripType
+from vehicles import services
 
 DATETIME_WIDGET = forms.DateTimeInput(
     attrs={
@@ -111,10 +113,10 @@ class FinishTripForm(forms.Form):
         trip_vehicle = getattr(self.trip, 'tripvehicle', None)
         if trip_vehicle is None:
             return final_mileage
-        current_mileage = trip_vehicle.current_mileage
-        if final_mileage < current_mileage:
+        try:
+            services.validate_final_mileage(trip_vehicle, final_mileage)
+        except ValidationError as exc:
             raise forms.ValidationError(
-                f'O odômetro final não pode ser menor que o odômetro '
-                f'atual ({current_mileage} km).'
+                exc.message_dict['final_mileage'][0]
             )
         return final_mileage

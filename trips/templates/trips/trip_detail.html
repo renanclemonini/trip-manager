@@ -22,7 +22,7 @@
                 <p class="mb-1"><strong>{{ trip.tripvehicle.vehicle }}</strong></p>
                 <p class="text-muted mb-1">Odômetro inicial: {{ trip.tripvehicle.initial_mileage|intcomma }} km</p>
                 {% if trip.is_completed %}
-                    {% if trip.tripvehicle.final_mileage is not None %}
+                    {% if trip.tripvehicle.final_mileage_is_effective %}
                         <p class="text-muted mb-3">Odômetro final: {{ trip.tripvehicle.current_mileage|intcomma }} km</p>
                     {% elif trip.tripvehicle.last_refueling %}
                         <p class="text-muted mb-3">Odômetro final (último abastecimento): {{ trip.tripvehicle.current_mileage|intcomma }} km</p>
@@ -128,7 +128,7 @@
             <h6 class="fw-semibold mb-3">Abastecimento</h6>
             <div class="row g-3">
                 <div class="col-md-4">
-                    <p class="text-muted mb-1">{% if trip.tripvehicle and trip.tripvehicle.final_mileage is not None %}Distância total (odômetro final){% else %}Distância total{% endif %}</p>
+                    <p class="text-muted mb-1">{% if trip.tripvehicle.final_mileage_is_effective %}Distância total (odômetro final){% elif trip.tripvehicle.final_mileage is not None %}Distância total (último abastecimento){% else %}Distância total{% endif %}</p>
                     <p class="fw-semibold">{{ dashboard.refueling.total_distance|default:'—' }} km</p>
                 </div>
                 <div class="col-md-4">
