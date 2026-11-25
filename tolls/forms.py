@@ -15,6 +15,14 @@ DATETIME_WIDGET = forms.DateTimeInput(
 )
 
 
+class TollImportForm(forms.Form):
+    file = forms.FileField(
+        label='Extrato de pedágio em PDF',
+        help_text='Máximo de 5 MB e 20 páginas.',
+        widget=forms.ClearableFileInput(attrs={'class': 'form-control'}),
+    )
+
+
 class TollForm(forms.Form):
     location = forms.CharField(
         label='Local/Praça',

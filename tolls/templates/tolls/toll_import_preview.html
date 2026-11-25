@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+
+{% block title %}Prévia da importação — Gerenciador de Viagem{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left d-flex align-items-center">
+        <div class="page-header-title">
+            <h5 class="m-b-10">Prévia da importação</h5>
+            <p class="text-muted mb-0">{{ trip }}</p>
+            <a href="{% url 'toll_import' trip.pk %}" class="text-muted fs-12 d-inline-block mt-1">← Enviar outro extrato</a>
+        </div>
+    </div>
+</div>
+
+{% if preview.filter_plate_warning %}
+    <div class="alert alert-warning">
+        A placa do extrato difere da placa do veículo da viagem — todas as
+        linhas vieram desmarcadas.
+    </div>
+{% endif %}
+
+<div class="card mb-3">
+    <div class="card-body p-4">
+        <h6 class="fw-semibold mb-3">Resumo do extrato</h6>
+        <p class="text-muted mb-0">
+            O extrato declara {{ preview.summary_toll_count }} pedágio(s)
+            totalizando R$ {{ preview.summary_toll_total }}.
+        </p>
+    </div>
+</div>
+
+<form method="post" action="{% url 'toll_import_confirm' trip.pk %}">
+    {% csrf_token %}
+    <input type="hidden" name="payload" value="{{ signed_payload }}">
+
+    <div class="card mb-3">
+        <div class="card-body p-0">
+            {% if preview.rows %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Importar</th>
+                                <th>Data/hora</th>
+                                <th>Local/Praça</th>
+                                <th>Valor</th>
+                                <th>Motivo</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in preview.rows %}
+                                <tr>
+                                    <td>
+                                        <input type="checkbox" name="selected"
+                                               value="{{ row.index }}"
+                                               {% if row.checked %}checked{% endif %}
+                                               {% if row.reason %}data-reason="{{ row.reason }}"{% endif %}>
+                                    </td>
+                                    <td>{{ row.datetime }}</td>
+                                    <td>{{ row.description }}</td>
+                                    <td>R$ {{ row.amount }}</td>
+                                    <td class="text-muted">{{ row.reason|default:'' }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="p-4 text-muted">Nenhuma transação reconhecida.</div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if preview.ignored %}
+        <div class="card mb-3">
+            <div class="card-body p-4">
+                <h6 class="fw-semibold mb-3">Transações ignoradas</h6>
+                <ul class="mb-0">
+                    {% for ignored in preview.ignored %}
+                        <li class="text-muted">
+                            {{ ignored.description }} — R$ {{ ignored.amount }}
+                            ({{ ignored.reason }})
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    {% endif %}
+
+    <div class="card mb-3">
+        <div class="card-body p-4 d-flex align-items-center justify-content-between">
+            <div>
+                <p class="text-muted mb-1">A importar</p>
+                <p class="fw-semibold mb-0">
+                    {{ preview.checked_count }} pedágio(s) — R$ {{ preview.checked_total }}
+                </p>
+            </div>
+            <button type="submit" class="btn btn-primary">Confirmar importação</button>
+        </div>
+    </div>
+</form>
+{% endblock %}

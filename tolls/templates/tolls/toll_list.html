@@ -13,6 +13,9 @@
         </div>
     </div>
     <div class="page-header-right ms-auto">
+        <a href="{% url 'toll_import' trip.pk %}" class="btn btn-light me-2">
+            <i class="feather-upload me-2"></i>Importar extrato
+        </a>
         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#tollModal">
             <i class="feather-plus me-2"></i>Novo pedágio
         </button>
