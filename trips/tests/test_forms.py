@@ -123,8 +123,9 @@ class FinishTripFormTests(TestCase):
         )
 
     def _data(self, **overrides):
+        end = self.trip.start_datetime + timedelta(hours=5)
         data = {
-            'end_datetime': '2026-11-24T18:00',
+            'end_datetime': end.strftime('%Y-%m-%dT%H:%M'),
             'final_mileage': '2000',
         }
         data.update(overrides)
